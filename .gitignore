@@ -1,0 +1,34 @@
+*.iml
+.idea
+.claude
+.vscode
+build/
+data/
+yolov8n.pt
+
+# env / secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Gradle
+.gradle/
+.kotlin/
+
+# Expo
+.expo/
+
+# misc
+*.mv.db
+*.log

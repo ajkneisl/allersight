@@ -1,0 +1,18 @@
+ktor:
+    application:
+        modules:
+            - com.allerlens.ApplicationKt.module
+    deployment:
+        port: 8080
+jwt:
+  issuer: "allerlens"
+  audience: "allerlens-client"
+  realm: "allerlens"
+  expirationSeconds: 2592000
+database:
+  driver: "org.h2.Driver"
+  url: "jdbc:h2:file:./build/allerlens;DB_CLOSE_DELAY=-1"
+  user: ""
+  password: ""
+tinyfish:
+  baseUrl: "https://agent.tinyfish.ai/v1/automation/run"
