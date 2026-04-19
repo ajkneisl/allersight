@@ -69,56 +69,25 @@ class TinyFishClient(
     }
 
     suspend fun analyzeMeal(
-        imageBase64: String,
         mealDescription: String,
         locationLabel: String?,
-    ): MealExtraction {
+    ): SourceResult {
         if (apiKey.isNullOrBlank()) throw TinyFishException("TINYFISH_API_KEY is not configured")
-        log.info("analyzeMeal started — description=\"{}\"", mealDescription.take(80))
+        log.info("fetchSource started — description=\"{}\"", mealDescription.take(80))
         val start = System.currentTimeMillis()
-
-        val result = coroutineScope {
-            val nutritionDeferred = async { fetchNutrition(imageBase64, mealDescription) }
-            val sourceDeferred = async { fetchSource(imageBase64, mealDescription, locationLabel) }
-            MealExtraction(
-                nutrition = nutritionDeferred.await(),
-                source = sourceDeferred.await(),
-            )
-        }
-
-        log.info("analyzeMeal completed — {}ms — cal={} protein={} restaurant={}",
-            System.currentTimeMillis() - start,
-            result.nutrition.calories, result.nutrition.protein, result.source.restaurant)
+        val result = fetchSource(mealDescription, locationLabel)
+        log.info("fetchSource completed — {}ms — restaurant={}", System.currentTimeMillis() - start, result.restaurant)
         return result
     }
 
-    private suspend fun fetchNutrition(imageBase64: String, mealDescription: String): NutritionResult {
-        val goal = buildString {
-            append("I have a photo of a meal (data:image/jpeg;base64,$imageBase64). ")
-            append("The detected labels are: \"$mealDescription\". ")
-            append("Analyze the image and search for nutrition information. ")
-            append("Extract and return JSON with keys: ")
-            append("description (string, the food name), ")
-            append("calories (integer, total kcal), ")
-            append("protein (integer, grams), ")
-            append("carbs (integer, grams), ")
-            append("fat (integer, grams), ")
-            append("ingredients (array of strings, main ingredients). ")
-            append("Return only the JSON object.")
-        }
-        val result = runAgent("https://www.nutritionix.com", goal)
-        return parseNutrition(result)
-    }
-
-    private suspend fun fetchSource(imageBase64: String, mealDescription: String, locationLabel: String?): SourceResult {
+    private suspend fun fetchSource(mealDescription: String, locationLabel: String?): SourceResult {
         val query = buildString {
             append("\"$mealDescription\"")
             if (!locationLabel.isNullOrBlank()) append(" near $locationLabel")
             append(" restaurant OR recipe")
         }
         val goal = buildString {
-            append("I have a photo of a meal (data:image/jpeg;base64,$imageBase64). ")
-            append("The detected labels are: \"$mealDescription\". ")
+            append("Search for: $query. ")
             append("Search for: $query. ")
             append("Determine if this is a restaurant dish or a home recipe. ")
             append("Return JSON with keys: ")
@@ -131,6 +100,31 @@ class TinyFishClient(
         val result = runAgent("https://www.google.com", goal)
         return parseSource(result)
     }
+
+    suspend fun fetchAlternative(mealName: String, allergens: List<String>): String? {
+        if (apiKey.isNullOrBlank()) return null
+        val goal = buildString {
+            append("Search for an allergen-free alternative to \"$mealName\" that avoids ${allergens.joinToString(", ")}. ")
+            append("Find a specific dish or recipe that is similar but safe. ")
+            append("Return JSON with a single key: ")
+            append("alternative (string, a short suggestion like \"Try X instead — it's Y-free and similar in taste\"). ")
+            append("Return only the JSON object.")
+        }
+        log.info("Fetching alternative for \"{}\" avoiding {}", mealName, allergens)
+        val start = System.currentTimeMillis()
+        return try {
+            val result = runAgent("https://www.google.com", goal)
+            val obj = findJsonObject(result, listOf("alternative"))
+            val alt = obj?.get("alternative")?.jsonPrimitive?.content
+            log.info("Alternative found in {}ms: {}", System.currentTimeMillis() - start, alt)
+            alt
+        } catch (e: Exception) {
+            log.warn("Alternative lookup failed: {}", e.message)
+            null
+        }
+    }
+
+    suspend fun runAgentPublic(url: String, goal: String): JsonElement = runAgent(url, goal)
 
     private suspend fun runAgent(url: String, goal: String): JsonElement {
         val label = if (url.contains("nutritionix")) "nutrition" else "source"
@@ -156,20 +150,6 @@ class TinyFishClient(
 
         log.info("TinyFish {} completed — 200 ({}ms): {}", label, elapsed, responseText.take(500))
         return json.parseToJsonElement(responseText)
-    }
-
-    private fun parseNutrition(envelope: JsonElement): NutritionResult {
-        val obj = findJsonObject(envelope, listOf("calories"))
-            ?: return NutritionResult()
-        return NutritionResult(
-            description = obj.str("description") ?: "",
-            calories = obj.int("calories"),
-            protein = obj.int("protein"),
-            carbs = obj.int("carbs"),
-            fat = obj.int("fat"),
-            ingredients = obj["ingredients"]?.jsonArray
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull() } ?: emptyList(),
-        )
     }
 
     private fun parseSource(envelope: JsonElement): SourceResult {

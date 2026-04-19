@@ -19,6 +19,9 @@ import com.allerlens.meals.TinyFishException
 import com.allerlens.meals.mealRoutes
 import com.allerlens.profile.profileRoutes
 import com.allerlens.recipes.recipeRoutes
+import com.allerlens.restaurants.RestaurantService
+import com.allerlens.restaurants.RestaurantCrawler
+import com.allerlens.restaurants.restaurantRoutes
 import com.allerlens.vision.visionRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -26,12 +29,14 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 
 import kotlinx.coroutines.CoroutineScope
@@ -60,6 +65,12 @@ fun Application.module() {
 
     DatabaseFactory.init(this)
 
+    // Seed test business accounts
+    for (email in listOf("user@example.com", "yord@allersight.com")) {
+        try { com.allerlens.auth.UserService.register(email, "password") }
+        catch (_: com.allerlens.auth.EmailAlreadyExistsException) { /* already seeded */ }
+    }
+
     val jwt = JwtConfig.fromApplication(this, env("JWT_SECRET"))
 
     val tinyFishBaseUrl = env("TINYFISH_BASE_URL")
@@ -70,6 +81,9 @@ fun Application.module() {
     )
     val featherlessClient = FeatherlessClient(apiKey = env("FEATHERLESS_API_KEY"))
     val mealService = MealService(featherlessClient, tinyFishClient, CoroutineScope(SupervisorJob() + Dispatchers.IO))
+    val restaurantService = RestaurantService(tinyFishClient)
+    val crawlerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    RestaurantCrawler(tinyFishClient, crawlerScope).start()
 
     install(ContentNegotiation) { json() }
 
@@ -131,13 +145,23 @@ fun Application.module() {
     }
 
     routing {
-        get("/") { call.respondText("allerlens backend") }
-        authRoutes(jwt)
-        mealRoutes(mealService)
-        profileRoutes()
-        friendRoutes()
-        notificationRoutes()
-        recipeRoutes()
+        route("/api") {
+            get("/test") {
+                call.respondText("hello")
+            }
+
+            authRoutes(jwt)
+            mealRoutes(mealService)
+            profileRoutes()
+            friendRoutes()
+            notificationRoutes()
+            recipeRoutes()
+            restaurantRoutes(restaurantService)
+        }
         visionRoutes(jwt)
+        singlePageApplication {
+            useResources = true
+            filesPath = "static"
+        }
     }
 }

@@ -36,10 +36,6 @@ fun Route.mealRoutes(service: MealService) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("image is required"))
                     return@post
                 }
-                if (body.description.isBlank()) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("description is required"))
-                    return@post
-                }
 
                 val meal = service.createMeal(userId, body)
                 call.respond(HttpStatusCode.Created, meal)

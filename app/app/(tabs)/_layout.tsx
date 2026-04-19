@@ -39,29 +39,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="recipes"
-        options={{
-          title: 'Recipes',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="book.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="friends"
         options={{
-          title: 'Friends',
+          title: 'Map',
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="person.2.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons size={24} name="bell-outline" color={color} />
+            <IconSymbol size={24} name="map.fill" color={color} />
           ),
         }}
       />
@@ -74,6 +56,8 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="recipes" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

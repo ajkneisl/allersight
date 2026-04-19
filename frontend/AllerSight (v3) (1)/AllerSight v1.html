@@ -1,0 +1,1875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AllerSight — proof of safety, from kitchen to plate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --cream: #f4f1ea;
+    --cream-2: #eae6dc;
+    --ink: #15211a;
+    --green: #1f3d2b;
+    --green-deep: #132319;
+    --terra: #d97757;
+    --amber: #d9a34e;
+    --safe: #6e9a5e;
+    --muted: rgba(21,33,26,0.55);
+    --line: rgba(21,33,26,0.15);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(244,241,234,0.9);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border-bottom: 0.5px solid var(--line);
+  }
+  .nav {
+    max-width: 1320px; margin: 0 auto; padding: 18px 36px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic; font-size: 26px; letter-spacing: -0.5px;
+    display: inline-flex; align-items: baseline;
+  }
+  .brand .lens {
+    display: inline-block; width: 18px; height: 18px;
+    border-radius: 50%; border: 1.5px solid var(--terra);
+    margin: 0 1px; position: relative; top: -1px;
+  }
+  .brand .lens::after {
+    content: ''; position: absolute; inset: 4px;
+    border-radius: 50%; background: var(--terra);
+  }
+  .nav ul {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; gap: 32px;
+    font-size: 13px;
+  }
+  .nav ul a { color: var(--ink); opacity: 0.75; transition: opacity 0.15s, color 0.15s; }
+  .nav ul a:hover { color: var(--terra); opacity: 1; }
+  .nav .ctas { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    border: 1px solid transparent; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--ink); color: var(--cream); }
+  .btn-primary:hover { background: var(--green); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--ink); }
+  @media (max-width: 960px) {
+    .nav ul { display: none; }
+    .nav { padding: 14px 20px; }
+  }
+
+  /* ── SIDE LABEL (left/right running caps) ───────── */
+  .side-label {
+    position: absolute; writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: 'Inter', system-ui; font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+
+  /* ── HERO ───────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    max-width: 1320px; margin: 0 auto;
+    padding: 70px 36px 90px;
+  }
+  .hero .eyebrow-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 48px;
+    font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .hero .eyebrow-row .e-left { display: inline-flex; align-items: center; gap: 12px; }
+  .hero .eyebrow-row .e-left::before {
+    content: ''; width: 28px; height: 1px; background: var(--terra);
+  }
+  .hero .eyebrow-row .e-right { opacity: 0.7; }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(64px, 9vw, 148px);
+    line-height: 1.02; letter-spacing: -3.5px; margin: 0;
+    font-weight: 400; text-wrap: pretty;
+    max-width: 1200px;
+  }
+  .hero h1 em { font-style: italic; color: var(--green); }
+  .hero h1 .swipe {
+    position: relative; display: inline-block; font-style: italic;
+    padding-bottom: 2px;
+  }
+  .hero h1 .swipe::after {
+    content: ''; position: absolute; left: -2px; right: -2px; bottom: 14px;
+    height: 8px; background: var(--terra); z-index: -1; opacity: 0.85;
+  }
+  .hero-rail {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+    margin-top: 60px; align-items: start;
+  }
+  @media (max-width: 900px) { .hero-rail { grid-template-columns: 1fr; gap: 36px; } }
+  .hero-rail .lede {
+    font-size: 18px; line-height: 1.55; color: var(--muted);
+    max-width: 520px; margin: 0; text-wrap: pretty;
+  }
+  .hero-rail .lede b { color: var(--ink); font-weight: 500; }
+  .hero-ctas { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  .hero-ctas .pair {
+    display: flex; flex-wrap: wrap; gap: 10px;
+  }
+  .hero-ctas .btn { padding: 13px 22px; font-size: 14px; }
+  .hero-ctas .sidenote {
+    font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    margin-top: 4px;
+  }
+
+  /* ── SPLIT SHOWCASE (two sides) ───────────────────── */
+  .split {
+    max-width: 1320px; margin: 0 auto; padding: 0 36px 100px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+    background: var(--line);
+    border: 0.5px solid var(--line);
+  }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+  .split-side {
+    background: var(--cream); padding: 38px 34px 30px;
+    display: flex; flex-direction: column; gap: 24px;
+    position: relative; min-height: 540px;
+  }
+  .split-side .tag {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 10px; letter-spacing: 2.6px; text-transform: uppercase;
+    font-weight: 600; color: var(--terra);
+  }
+  .split-side .tag .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--terra);
+  }
+  .split-side.consumer .tag { color: var(--green); }
+  .split-side.consumer .tag .dot { background: var(--green); }
+  .split-side h3 {
+    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-size: 44px; line-height: 1.06; letter-spacing: -1.2px;
+    margin: 0 0 4px; text-wrap: pretty;
+  }
+  .split-side h3 em { font-style: italic; color: var(--terra); }
+  .split-side.consumer h3 em { color: var(--green); }
+  .split-side p { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 0; max-width: 440px; }
+  .split-side .stage { margin-top: auto; }
+
+  /* ── BAND BASE ─────────────────────────────────────── */
+  .band { padding: 120px 36px; position: relative; }
+  .band .inner { max-width: 1320px; margin: 0 auto; }
+  .band h2 {
+    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-size: clamp(44px, 6vw, 88px); line-height: 1.02;
+    letter-spacing: -2px; margin: 0 0 28px; text-wrap: pretty;
+  }
+  .band h2 em { font-style: italic; color: var(--terra); }
+  .band .section-eyebrow {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; letter-spacing: 2.6px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-bottom: 26px;
+    padding-bottom: 18px; border-bottom: 0.5px solid var(--line);
+  }
+  .band .section-eyebrow .num { color: var(--terra); }
+  .band.dark { background: var(--ink); color: var(--cream); }
+  .band.dark h2 { color: var(--cream); }
+  .band.dark .section-eyebrow { color: rgba(244,241,234,0.6); border-color: rgba(244,241,234,0.2); }
+  .band.dark .section-eyebrow .num { color: var(--terra); }
+  .band.green { background: var(--green-deep); color: var(--cream); }
+  .band.green h2 { color: var(--cream); }
+  .band.green h2 em { color: var(--terra); }
+  .band.green .section-eyebrow { color: rgba(244,241,234,0.6); border-color: rgba(244,241,234,0.2); }
+
+  /* ── BUSINESS: Kitchen Vision ──────────────────────── */
+  .kitchen-grid {
+    display: grid; grid-template-columns: 1.05fr 1fr;
+    gap: 60px; align-items: center;
+  }
+  @media (max-width: 980px) { .kitchen-grid { grid-template-columns: 1fr; gap: 40px; } }
+  .kitchen-copy p.lede {
+    font-size: 17px; line-height: 1.6; color: rgba(244,241,234,0.72);
+    margin: 0 0 32px; max-width: 520px; text-wrap: pretty;
+  }
+  .kitchen-copy p.lede b { color: var(--cream); font-weight: 500; }
+  .kitchen-copy .feat {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px 32px;
+    padding-top: 10px;
+  }
+  .kitchen-copy .feat .item {
+    border-top: 0.5px solid rgba(244,241,234,0.2);
+    padding-top: 14px;
+  }
+  .kitchen-copy .feat .k {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--terra); margin-bottom: 6px; letter-spacing: -0.3px;
+  }
+  .kitchen-copy .feat .v {
+    font-size: 13px; line-height: 1.5; color: rgba(244,241,234,0.78);
+  }
+
+  /* POV / kitchen camera mock */
+  .kitchen-pov {
+    position: relative; aspect-ratio: 5 / 6;
+    border-radius: 22px; overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(217,119,87,0.18) 0%, transparent 45%),
+      radial-gradient(circle at 72% 66%, rgba(110,154,94,0.15) 0%, transparent 40%),
+      linear-gradient(160deg, #1c2a22 0%, #0a1410 100%);
+    box-shadow: 0 50px 120px rgba(0,0,0,0.5);
+    border: 0.5px solid rgba(244,241,234,0.08);
+  }
+  .kitchen-pov::before {
+    /* scanlines */
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg,
+      rgba(244,241,234,0.02) 0 1px,
+      transparent 1px 3px);
+    pointer-events: none;
+  }
+  .kp-hud {
+    position: absolute; top: 20px; left: 22px; right: 22px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(244,241,234,0.85); font-weight: 500;
+    z-index: 6;
+  }
+  .kp-hud .live { display: inline-flex; align-items: center; gap: 8px; }
+  .kp-hud .live::before {
+    content:''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--terra); box-shadow: 0 0 10px var(--terra);
+    animation: asPulseDot 1.4s ease-in-out infinite;
+  }
+  @keyframes asPulseDot { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  .kp-scene {
+    position: absolute; inset: 48px 24px 140px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .kp-obj {
+    position: relative; border-radius: 14px; overflow: hidden;
+    background: linear-gradient(150deg, #3a2a20 0%, #1a120c 100%);
+    border: 0.5px solid rgba(244,241,234,0.1);
+    padding: 10px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 140px;
+  }
+  .kp-obj.contam {
+    box-shadow: 0 0 0 1.5px rgba(217,119,87,0.55),
+                0 0 30px rgba(217,119,87,0.3);
+  }
+  .kp-obj.clean {
+    box-shadow: 0 0 0 1px rgba(110,154,94,0.45);
+  }
+  .kp-obj .label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(244,241,234,0.6); font-weight: 500;
+  }
+  .kp-obj .name {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--cream); line-height: 1;
+    letter-spacing: -0.3px;
+  }
+  .kp-obj.contam .name { color: var(--terra); }
+  .kp-obj.clean .name { color: #9dc08e; }
+  .kp-obj .trace {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    color: rgba(244,241,234,0.55);
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .kp-obj .trace span {
+    background: rgba(244,241,234,0.07); padding: 2px 7px;
+    border-radius: 4px; border: 0.5px solid rgba(244,241,234,0.12);
+  }
+  .kp-obj.contam .trace span {
+    border-color: rgba(217,119,87,0.4); color: #e9b299;
+    background: rgba(217,119,87,0.1);
+  }
+  .kp-obj.clean .trace span {
+    border-color: rgba(110,154,94,0.35); color: #a8c79b;
+    background: rgba(110,154,94,0.1);
+  }
+
+  /* tiny thumbnail inside the obj card */
+  .kp-obj .thumb {
+    width: 100%; height: 48px; border-radius: 8px;
+    margin-bottom: 8px;
+    position: relative; overflow: hidden;
+  }
+  .thumb-peanuts { background:
+    radial-gradient(ellipse at 30% 40%, #c8986a 0%, #8a5c34 40%, #3a2818 80%),
+    radial-gradient(ellipse at 70% 60%, #b88558 0%, #6a4222 50%, transparent 80%); }
+  .thumb-knife { background:
+    linear-gradient(135deg, #cfd2d6 0%, #8a8f93 45%, #2a2d31 55%, #1a1c1f 100%); }
+  .thumb-board { background:
+    linear-gradient(90deg, #a87848 0%, #7a5230 50%, #9a6a3e 100%); }
+  .thumb-hands { background:
+    radial-gradient(ellipse at 50% 60%, #e9c59a 0%, #b88858 50%, #6a3e1e 100%); }
+  .thumb-pan { background:
+    radial-gradient(ellipse at 50% 40%, #5a5a5e 0%, #2a2a2e 60%, #0c0c0e 100%); }
+  .thumb-sauce { background:
+    radial-gradient(ellipse at 40% 50%, #d9593a 0%, #8a2e1c 50%, #3a140a 100%); }
+
+  .kp-footer {
+    position: absolute; left: 22px; right: 22px; bottom: 22px;
+    background: rgba(14,22,17,0.78);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 0.5px solid rgba(244,241,234,0.15);
+    border-radius: 14px; padding: 12px 14px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 14px;
+    align-items: center; z-index: 6;
+  }
+  .kp-footer .chip {
+    padding: 6px 10px; border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    background: rgba(217,119,87,0.15); color: var(--terra);
+    border: 0.5px solid rgba(217,119,87,0.45);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .kp-footer .line {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 16px; color: var(--cream); letter-spacing: -0.2px;
+    line-height: 1.2;
+  }
+  .kp-footer .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: rgba(244,241,234,0.5); letter-spacing: 1.2px;
+    white-space: nowrap;
+  }
+
+  /* ── PROTOCOL LOG (event trail) ────────────────────── */
+  .proto-wrap {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .proto-wrap { grid-template-columns: 1fr; gap: 40px; } }
+  .proto-copy .lede {
+    font-size: 17px; line-height: 1.6; color: var(--muted);
+    max-width: 520px; margin: 0 0 32px;
+  }
+  .proto-copy .lede b { color: var(--ink); font-weight: 500; }
+  .proto-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--line); border: 0.5px solid var(--line);
+    margin-bottom: 30px;
+  }
+  .proto-stats .cell {
+    background: var(--cream); padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .proto-stats .cell .n {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 36px; color: var(--ink); letter-spacing: -0.8px; line-height: 1;
+  }
+  .proto-stats .cell .n em { color: var(--terra); font-style: italic; }
+  .proto-stats .cell .k {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .proto-list {
+    display: flex; flex-direction: column; gap: 10px;
+    font-size: 13px; color: var(--ink);
+  }
+  .proto-list .p {
+    display: grid; grid-template-columns: auto 1fr; gap: 14px;
+    padding-top: 12px; border-top: 0.5px solid var(--line);
+  }
+  .proto-list .p .k {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 18px; color: var(--terra); letter-spacing: -0.2px;
+    min-width: 130px;
+  }
+  .proto-list .p .v { font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .proto-list .p .v b { color: var(--ink); font-weight: 500; }
+
+  /* event log mock */
+  .log-panel {
+    background: var(--ink); color: var(--cream);
+    border-radius: 18px; overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 40px 100px rgba(21,33,26,0.3);
+  }
+  .log-head {
+    padding: 18px 22px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 0.5px solid rgba(244,241,234,0.15);
+    background: #0e1611;
+  }
+  .log-head .t {
+    font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase;
+    color: var(--terra); font-weight: 600;
+  }
+  .log-head .station {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 18px; color: var(--cream); letter-spacing: -0.2px;
+    margin-top: 2px;
+  }
+  .log-head .meta {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(244,241,234,0.55); text-align: right;
+    line-height: 1.45;
+  }
+  .log-head .meta .dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--safe); margin-right: 5px; box-shadow: 0 0 8px var(--safe);
+  }
+
+  .log-body { padding: 6px 0; max-height: 520px; overflow: hidden; position: relative; }
+  .log-row {
+    display: grid; grid-template-columns: 80px 14px 1fr auto;
+    gap: 14px; padding: 10px 22px; align-items: center;
+    font-size: 12px; color: rgba(244,241,234,0.85);
+    position: relative;
+  }
+  .log-row + .log-row::before {
+    content: ''; position: absolute; top: -1px; left: 22px; right: 22px;
+    height: 0.5px; background: rgba(244,241,234,0.08);
+  }
+  .log-row .time { color: rgba(244,241,234,0.55); font-size: 11px; }
+  .log-row .marker {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(244,241,234,0.3);
+    justify-self: center;
+  }
+  .log-row.warn .marker { background: var(--terra); box-shadow: 0 0 10px var(--terra); }
+  .log-row.warn .msg { color: var(--terra); }
+  .log-row.action .marker { background: var(--amber); }
+  .log-row.clean .marker { background: var(--safe); box-shadow: 0 0 8px rgba(110,154,94,0.5); }
+  .log-row.clean .msg b { color: #a8c79b; }
+  .log-row.safe .marker { background: var(--safe); }
+  .log-row .msg { line-height: 1.4; }
+  .log-row .msg b {
+    color: var(--cream); font-weight: 500;
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 15px;
+  }
+  .log-row .tag {
+    font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 4px; font-weight: 600;
+    background: rgba(244,241,234,0.08); color: rgba(244,241,234,0.65);
+    border: 0.5px solid rgba(244,241,234,0.15);
+  }
+  .log-row.warn .tag { background: rgba(217,119,87,0.14); color: var(--terra); border-color: rgba(217,119,87,0.4); }
+  .log-row.clean .tag { background: rgba(110,154,94,0.14); color: #a8c79b; border-color: rgba(110,154,94,0.35); }
+
+  .log-foot {
+    padding: 14px 22px; background: #0a120d;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(244,241,234,0.55);
+    border-top: 0.5px solid rgba(244,241,234,0.15);
+  }
+  .log-foot .stamp { color: var(--terra); }
+
+  /* ── CONTAMINATION MAP (surface diagram) ───────────── */
+  .map-wrap {
+    display: grid; grid-template-columns: 1fr 1.15fr; gap: 60px;
+    align-items: center;
+  }
+  @media (max-width: 980px) { .map-wrap { grid-template-columns: 1fr; gap: 40px; } }
+  .map-copy p.lede {
+    font-size: 17px; line-height: 1.6; color: rgba(244,241,234,0.72);
+    margin: 0 0 28px; max-width: 520px;
+  }
+  .map-copy .legend {
+    display: flex; flex-direction: column; gap: 12px;
+    padding-top: 20px; border-top: 0.5px solid rgba(244,241,234,0.2);
+  }
+  .map-copy .legend .row {
+    display: grid; grid-template-columns: 16px auto 1fr; gap: 14px;
+    align-items: baseline;
+    font-size: 13px; line-height: 1.4; color: rgba(244,241,234,0.78);
+  }
+  .map-copy .legend .sw {
+    width: 12px; height: 12px; border-radius: 50%;
+    margin-top: 4px;
+  }
+  .map-copy .legend .k {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 17px; color: var(--cream); letter-spacing: -0.2px;
+    min-width: 140px;
+  }
+
+  .kitchen-map {
+    background: #0a1410; border-radius: 22px;
+    aspect-ratio: 1 / 0.86; position: relative;
+    padding: 28px;
+    border: 0.5px solid rgba(244,241,234,0.08);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .kitchen-map .grid {
+    position: absolute; inset: 28px;
+    background-image:
+      linear-gradient(rgba(244,241,234,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(244,241,234,0.04) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .km-head {
+    position: relative; z-index: 5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .km-head .t {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2.2px; text-transform: uppercase;
+    color: rgba(244,241,234,0.6); font-weight: 500;
+  }
+  .km-head .name {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--cream); letter-spacing: -0.3px;
+    margin-top: 4px;
+  }
+  .km-head .legend-hint {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 1.4px; text-transform: uppercase;
+    color: rgba(244,241,234,0.5); text-align: right;
+  }
+
+  .km-stage {
+    position: relative; z-index: 4;
+    margin-top: 8px;
+    height: calc(100% - 60px);
+  }
+  .km-node {
+    position: absolute;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: rgba(21,33,26,0.85);
+    backdrop-filter: blur(8px);
+    border: 0.5px solid rgba(244,241,234,0.18);
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: rgba(244,241,234,0.85); font-weight: 500;
+    line-height: 1.2;
+    min-width: 96px;
+    z-index: 3;
+  }
+  .km-node .sub {
+    font-size: 8.5px; color: rgba(244,241,234,0.55);
+    margin-top: 2px; letter-spacing: 0.8px;
+    font-weight: 400;
+  }
+  .km-node.contam {
+    border-color: rgba(217,119,87,0.6);
+    background: rgba(60,28,18,0.88);
+    box-shadow: 0 0 0 3px rgba(217,119,87,0.12), 0 0 24px rgba(217,119,87,0.2);
+  }
+  .km-node.contam::before {
+    content: ''; position: absolute; inset: -2px; border-radius: 12px;
+    border: 1px solid rgba(217,119,87,0.35);
+    animation: mapRing 2.4s ease-out infinite;
+  }
+  @keyframes mapRing {
+    0% { transform: scale(0.98); opacity: 0.8; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+  .km-node.clean {
+    border-color: rgba(110,154,94,0.5);
+    background: rgba(20,40,26,0.8);
+  }
+  .km-node.clean .sub, .km-node.clean span.k { color: #a8c79b; }
+
+  .km-node .k {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 14px; color: var(--cream); letter-spacing: -0.2px;
+    text-transform: none;
+  }
+  .km-node.contam .k { color: #f2b89b; }
+
+  /* connecting lines via SVG overlay */
+  .km-svg { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+
+  /* ── CONSUMER: friend-safe scan ──────────────────── */
+  .friend-wrap {
+    display: grid; grid-template-columns: 1fr 1.1fr; gap: 60px;
+    align-items: center;
+  }
+  @media (max-width: 980px) { .friend-wrap { grid-template-columns: 1fr; gap: 40px; } }
+  .friend-copy p.lede {
+    font-size: 17px; line-height: 1.6; color: var(--muted);
+    margin: 0 0 30px; max-width: 520px;
+  }
+  .friend-copy p.lede b { color: var(--ink); font-weight: 500; }
+  .friend-steps {
+    display: flex; flex-direction: column; gap: 14px;
+    counter-reset: fs;
+  }
+  .friend-steps .step {
+    display: grid; grid-template-columns: auto 1fr; gap: 18px;
+    padding-top: 14px; border-top: 0.5px solid var(--line);
+  }
+  .friend-steps .step .n {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 2px; color: var(--terra); font-weight: 600;
+    counter-increment: fs;
+  }
+  .friend-steps .step .n::before {
+    content: counter(fs, decimal-leading-zero) " / ";
+    color: var(--muted);
+  }
+  .friend-steps .step .title {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--ink); letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .friend-steps .step .body {
+    font-size: 13px; line-height: 1.55; color: var(--muted);
+  }
+
+  /* phone scan result */
+  .friend-phone-stage {
+    position: relative; display: flex; justify-content: center;
+  }
+
+  /* ── TRUSTED BUSINESSES ─────────────────────────── */
+  .trusted-head {
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px;
+    align-items: end; margin-bottom: 50px;
+  }
+  @media (max-width: 820px) { .trusted-head { grid-template-columns: 1fr; gap: 20px; } }
+  .trusted-head p.lede {
+    font-size: 15px; line-height: 1.6; color: var(--muted);
+    max-width: 440px; margin: 0;
+  }
+  .trusted-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--line); border: 0.5px solid var(--line);
+  }
+  @media (max-width: 900px) { .trusted-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .trusted-grid { grid-template-columns: 1fr; } }
+  .t-card {
+    background: var(--cream); padding: 32px 28px 26px;
+    display: flex; flex-direction: column; gap: 14px;
+    min-height: 260px;
+    transition: background 0.2s;
+  }
+  .t-card:hover { background: var(--cream-2); }
+  .t-card .verified {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--green); font-weight: 600;
+  }
+  .t-card .verified svg { flex-shrink: 0; }
+  .t-card .biz-name {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 30px; color: var(--ink); letter-spacing: -0.6px; line-height: 1;
+    margin-top: 4px;
+  }
+  .t-card .biz-meta {
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+  .t-card .biz-stats {
+    margin-top: auto;
+    padding-top: 14px; border-top: 0.5px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .t-card .biz-stats .s {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .t-card .biz-stats .v {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 20px; color: var(--ink); letter-spacing: -0.3px;
+    margin-top: 2px;
+  }
+  .t-card .biz-stats .v em { color: var(--terra); font-style: italic; }
+
+  /* ── QUOTE / CREDIBILITY ────────────────────────── */
+  .quote-band {
+    padding: 150px 36px; background: var(--cream);
+    text-align: center;
+    position: relative;
+  }
+  .quote-band .inner { max-width: 1020px; margin: 0 auto; }
+  .quote-band blockquote {
+    margin: 0; padding: 0;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(34px, 4.8vw, 62px);
+    line-height: 1.1; letter-spacing: -1.4px;
+    color: var(--ink); font-weight: 400;
+    text-wrap: balance;
+  }
+  .quote-band blockquote em { font-style: italic; color: var(--terra); }
+  .quote-band .attribution {
+    margin-top: 48px;
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+  }
+  .quote-band .attribution .avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%,
+      #e9c59a 0%, #b88858 50%, #6a3e1e 100%);
+    border: 0.5px solid var(--line);
+  }
+  .quote-band .attribution .who {
+    text-align: left;
+  }
+  .quote-band .attribution .name {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--ink); letter-spacing: -0.3px;
+  }
+  .quote-band .attribution .role {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-top: 4px;
+  }
+  .quote-band .credibility {
+    margin-top: 80px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 0.5px solid var(--line);
+    max-width: 900px; margin-left: auto; margin-right: auto;
+  }
+  @media (max-width: 720px) { .quote-band .credibility { grid-template-columns: repeat(2, 1fr); } }
+  .cred-cell {
+    background: var(--cream); padding: 22px 18px;
+  }
+  .cred-cell .n {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 34px; color: var(--ink); letter-spacing: -0.8px; line-height: 1;
+  }
+  .cred-cell .n em { color: var(--terra); font-style: italic; }
+  .cred-cell .k {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-top: 6px;
+  }
+
+  /* ── CTA ─────────────────────────────────────────── */
+  .cta-band {
+    background: var(--green); color: var(--cream);
+    padding: 120px 36px;
+  }
+  .cta-band .inner {
+    max-width: 1320px; margin: 0 auto;
+    display: grid; grid-template-columns: 1.2fr 1fr; gap: 80px;
+  }
+  @media (max-width: 900px) { .cta-band .inner { grid-template-columns: 1fr; gap: 40px; } }
+  .cta-band h2 {
+    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-size: clamp(44px, 6vw, 88px); line-height: 1.04;
+    letter-spacing: -2px; margin: 0 0 24px; text-wrap: pretty;
+  }
+  .cta-band h2 em { font-style: italic; color: var(--terra); }
+  .cta-band p { font-size: 16px; line-height: 1.6; color: rgba(244,241,234,0.75); margin: 0; max-width: 520px; }
+  .cta-side {
+    display: grid; grid-template-columns: 1fr; gap: 1px;
+    background: rgba(244,241,234,0.15);
+    border: 0.5px solid rgba(244,241,234,0.15);
+  }
+  .cta-card {
+    background: var(--green);
+    padding: 28px 26px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .cta-card .k {
+    font-size: 10px; letter-spacing: 2.4px; text-transform: uppercase;
+    color: var(--terra); font-weight: 600;
+  }
+  .cta-card .t {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 28px; color: var(--cream); letter-spacing: -0.5px; line-height: 1.15;
+    padding-bottom: 2px;
+  }
+  .cta-card .v { font-size: 13px; line-height: 1.5; color: rgba(244,241,234,0.75); }
+  .cta-card .go {
+    align-self: flex-start;
+    padding: 10px 18px; border-radius: 999px;
+    background: var(--cream); color: var(--ink);
+    font-size: 13px; font-weight: 500; border: none;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.15s;
+  }
+  .cta-card .go:hover { background: #fff; }
+  .cta-card.alt .go { background: transparent; color: var(--cream); border: 0.5px solid rgba(244,241,234,0.4); }
+  .cta-card.alt .go:hover { background: rgba(244,241,234,0.1); }
+
+  /* ── FOOTER ─────────────────────────────────────── */
+  footer.site {
+    background: var(--ink); color: rgba(244,241,234,0.7);
+    padding: 70px 36px 40px;
+  }
+  footer .inner {
+    max-width: 1320px; margin: 0 auto;
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 50px;
+  }
+  @media (max-width: 820px) {
+    footer .inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+  }
+  footer h5 {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(244,241,234,0.5); margin: 0 0 16px; font-weight: 600;
+  }
+  footer ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  footer ul a { color: var(--cream); opacity: 0.85; }
+  footer ul a:hover { color: var(--terra); opacity: 1; }
+  footer .brand-block .logo {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 34px; color: var(--cream); margin-bottom: 14px;
+    display: inline-flex; align-items: baseline;
+  }
+  footer .brand-block .logo .lens {
+    display: inline-block; width: 22px; height: 22px;
+    border-radius: 50%; border: 1.5px solid var(--terra);
+    margin: 0 2px; position: relative; top: -1px;
+  }
+  footer .brand-block .logo .lens::after {
+    content: ''; position: absolute; inset: 6px;
+    border-radius: 50%; background: var(--terra);
+  }
+  footer .brand-block p { font-size: 13px; line-height: 1.55; max-width: 340px; margin: 0 0 20px; }
+  footer .legal {
+    max-width: 1320px; margin: 60px auto 0;
+    padding-top: 24px; border-top: 0.5px solid rgba(244,241,234,0.15);
+    display: flex; justify-content: space-between;
+    font-size: 11px; letter-spacing: 1px; color: rgba(244,241,234,0.5);
+  }
+
+  /* ── TWEAKS PANEL ──────────────────────────────── */
+  .tweaks {
+    position: fixed; right: 20px; bottom: 20px; z-index: 200;
+    width: 280px; background: var(--cream); color: var(--ink);
+    border-radius: 20px; padding: 20px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    font-family: 'Inter', system-ui; display: none;
+    border: 0.5px solid var(--line);
+  }
+  .tweaks.open { display: block; }
+  .tweaks h4 {
+    margin: 0 0 14px; font-size: 11px; letter-spacing: 2.2px;
+    text-transform: uppercase; font-weight: 600; color: var(--green);
+  }
+  .tweaks label {
+    display: block; font-size: 10px; letter-spacing: 1.6px;
+    text-transform: uppercase; font-weight: 600; color: var(--muted);
+    margin: 14px 0 8px;
+  }
+  .tweaks .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tweaks button.opt {
+    flex: 1; padding: 9px 10px; border-radius: 10px;
+    border: 0.5px solid var(--line); background: transparent;
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 14px; color: var(--ink); cursor: pointer;
+    transition: all 0.15s;
+    min-width: 60px;
+  }
+  .tweaks button.opt.active {
+    background: var(--ink); color: var(--cream); border-color: var(--ink);
+  }
+  .tweaks button.opt:hover:not(.active) { background: rgba(21,33,26,0.05); }
+
+  /* marquee of live events on hero */
+  .live-marquee {
+    margin-top: 60px;
+    border-top: 0.5px solid var(--line);
+    border-bottom: 0.5px solid var(--line);
+    padding: 18px 0;
+    overflow: hidden;
+    position: relative;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+  }
+  .live-marquee .track {
+    display: inline-flex; gap: 48px; white-space: nowrap;
+    animation: marqueeScroll 48s linear infinite;
+  }
+  @keyframes marqueeScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .live-marquee .item {
+    display: inline-flex; align-items: center; gap: 14px;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .live-marquee .item .d {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--terra);
+  }
+  .live-marquee .item .d.g { background: var(--safe); }
+  .live-marquee .item em {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 15px; color: var(--ink); text-transform: none; letter-spacing: -0.2px;
+    font-weight: 400;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════ HEADER ═════════ -->
+<header class="site">
+  <div class="nav">
+    <a href="#" class="brand">
+      aller<span class="lens"></span>sight
+    </a>
+    <ul>
+      <li><a href="#kitchens">For kitchens</a></li>
+      <li><a href="#log">Protocol log</a></li>
+      <li><a href="#consumer">For diners</a></li>
+      <li><a href="#trusted">Trusted by</a></li>
+    </ul>
+    <div class="ctas">
+      <a href="#consumer" class="btn btn-ghost">Get the app</a>
+      <a href="#kitchens" class="btn btn-primary">Book a kitchen</a>
+    </div>
+  </div>
+</header>
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero">
+  <div class="eyebrow-row">
+    <span class="e-left">Introducing AllerSight · Est. 2026</span>
+    <span class="e-right mono">No. 01 / 07</span>
+  </div>
+
+  <h1>
+    Safe food, <em>proven.</em><br/>
+    From the <span class="swipe">kitchen</span> to the table<br/>you share it at.
+  </h1>
+
+  <div class="hero-rail">
+    <p class="lede">
+      AllerSight is a <b>real-time allergen safety system</b> that watches the
+      kitchen, tracks every contaminated tool and surface, and proves — to
+      guests, insurers, and inspectors — that what landed on the plate is
+      exactly what was promised. For the rest of us, it's a phone in the
+      hand: <b>photograph the meal, pick a friend, know who can eat it.</b>
+    </p>
+    <div class="hero-ctas">
+      <div class="pair">
+        <a href="#kitchens" class="btn btn-primary">Install in your kitchen →</a>
+        <a href="#consumer" class="btn btn-ghost">Download for diners</a>
+      </div>
+      <div class="sidenote">SOC 2 · FDA-aligned audit trail · Used in 248 kitchens</div>
+    </div>
+  </div>
+
+  <!-- live-events marquee stitches B2B and B2C together -->
+  <div class="live-marquee" aria-hidden="true">
+    <div class="track">
+      <!-- duplicated once for seamless loop -->
+      <span class="item"><span class="d"></span>12:01 · <em>peanuts detected</em> · Osteria Bianca, prep 02</span>
+      <span class="item"><span class="d g"></span>12:05 · <em>knife washed</em> · contamination cleared</span>
+      <span class="item"><span class="d"></span>07:42 · <em>trace sesame</em> · on tongs, flagged</span>
+      <span class="item"><span class="d g"></span>19:18 · <em>table 14 served</em> · profile clean</span>
+      <span class="item"><span class="d"></span>11:26 · <em>egg yolk on cutting board</em></span>
+      <span class="item"><span class="d g"></span>14:03 · <em>scan → safe for Priya</em></span>
+      <span class="item"><span class="d"></span>09:51 · <em>shellfish stock in pan 03</em></span>
+      <span class="item"><span class="d g"></span>20:44 · <em>audit exported</em> · Q2 inspection</span>
+      <!-- dup -->
+      <span class="item"><span class="d"></span>12:01 · <em>peanuts detected</em> · Osteria Bianca, prep 02</span>
+      <span class="item"><span class="d g"></span>12:05 · <em>knife washed</em> · contamination cleared</span>
+      <span class="item"><span class="d"></span>07:42 · <em>trace sesame</em> · on tongs, flagged</span>
+      <span class="item"><span class="d g"></span>19:18 · <em>table 14 served</em> · profile clean</span>
+      <span class="item"><span class="d"></span>11:26 · <em>egg yolk on cutting board</em></span>
+      <span class="item"><span class="d g"></span>14:03 · <em>scan → safe for Priya</em></span>
+      <span class="item"><span class="d"></span>09:51 · <em>shellfish stock in pan 03</em></span>
+      <span class="item"><span class="d g"></span>20:44 · <em>audit exported</em> · Q2 inspection</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SPLIT SHOWCASE ═════════ -->
+<section class="split">
+  <div class="split-side">
+    <div class="tag"><span class="dot"></span>For kitchens · B2B</div>
+    <h3>Wearable vision that <em>sees the risk</em> before it plates.</h3>
+    <p>
+      Smart glasses and a ceiling camera watch every tool, hand and surface.
+      Contamination state persists — from the moment a peanut is opened, to
+      the moment the knife is washed. Proof of safety, logged.
+    </p>
+    <div class="stage">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px;">LIVE · KITCHEN CAM</div>
+      <div style="position:relative;aspect-ratio:16/10;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 30% 40%, rgba(217,119,87,0.18) 0%, transparent 55%),linear-gradient(160deg, #1c2a22 0%, #0a1410 100%);border:0.5px solid var(--line);">
+        <div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(244,241,234,0.85);font-weight:500;">
+          <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--terra);"></span>REC · STATION 02</span>
+          <span>00:12:34</span>
+        </div>
+        <div style="position:absolute;left:28%;top:38%;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #c8986a 0%, #8a5c34 50%, #3a2818 100%);box-shadow:0 0 0 2px rgba(217,119,87,0.5), 0 0 24px rgba(217,119,87,0.35);"></div>
+        <div style="position:absolute;left:30%;top:35%;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--terra);letter-spacing:1px;font-weight:600;text-transform:uppercase;padding:4px 8px;background:rgba(14,22,17,0.85);border-radius:4px;border:0.5px solid rgba(217,119,87,0.5);transform:translate(80px,-8px);">PEANUT · DETECTED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split-side consumer">
+    <div class="tag"><span class="dot"></span>For diners · B2C</div>
+    <h3>Snap a photo. <em>Know who can eat it.</em></h3>
+    <p>
+      Photograph the meal before it's served. Pick a friend — or the whole
+      table. AllerSight tells you instantly who it's safe for, and points
+      you to the nearest kitchen that's been verified safe for them.
+    </p>
+    <div class="stage">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px;">SCAN · FRIEND SAFETY</div>
+      <div style="border-radius:12px;background:var(--ink);color:var(--cream);padding:16px 18px;display:flex;flex-direction:column;gap:12px;border:0.5px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(244,241,234,0.55);font-weight:500;">
+          <span>Pad thai · 3 friends</span>
+          <span style="color:var(--terra);">2 safe · 1 flag</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <!-- friend row 1 -->
+          <div style="display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #e9c59a, #b88858);"></div>
+            <div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:17px;line-height:1;letter-spacing:-0.2px;">Priya</div>
+              <div style="font-size:10px;color:rgba(244,241,234,0.55);margin-top:3px;">no allergens in this dish</div>
+            </div>
+            <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#a8c79b;font-weight:600;padding:4px 8px;background:rgba(110,154,94,0.15);border-radius:4px;">Safe</div>
+          </div>
+          <!-- friend row 2 -->
+          <div style="display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #d4a578, #8a5432);"></div>
+            <div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:17px;line-height:1;letter-spacing:-0.2px;">Marcus</div>
+              <div style="font-size:10px;color:#e9b299;margin-top:3px;">peanuts · severe</div>
+            </div>
+            <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--terra);font-weight:600;padding:4px 8px;background:rgba(217,119,87,0.15);border-radius:4px;">Do not</div>
+          </div>
+          <!-- friend row 3 -->
+          <div style="display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;">
+            <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #f0d4b0, #a8764a);"></div>
+            <div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:17px;line-height:1;letter-spacing:-0.2px;">June</div>
+              <div style="font-size:10px;color:rgba(244,241,234,0.55);margin-top:3px;">gluten — noodles are rice</div>
+            </div>
+            <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#a8c79b;font-weight:600;padding:4px 8px;background:rgba(110,154,94,0.15);border-radius:4px;">Safe</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ BUSINESS: Kitchen Vision ═════════ -->
+<section class="band dark" id="kitchens">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">02</span> &nbsp;· For kitchens</span>
+      <span>The prep line, in sight</span>
+    </div>
+    <h2>What a peanut touches,<br/>AllerSight <em>remembers.</em></h2>
+
+    <div class="kitchen-grid">
+      <div class="kitchen-copy">
+        <p class="lede">
+          Line cooks wear lightweight glasses. A ceiling camera covers the
+          whole pass. Together they identify every visible ingredient in
+          real time, and — crucially — maintain a <b>live contamination
+          memory</b> across hands, knives, pans, tongs and boards.
+          <br/><br/>
+          Wash a knife, the chain breaks. Rinse your hands, the chain breaks.
+          Until then, the knife is still "peanut." The glove is still
+          "shellfish." Every plate that touches it inherits the risk.
+        </p>
+        <div class="feat">
+          <div class="item"><div class="k">Contamination memory</div><div class="v">A graph of every surface and tool, with its current allergen state. Persistent across service.</div></div>
+          <div class="item"><div class="k">Wash-to-clear</div><div class="v">Hand-washing and tool-rinsing are detected visually — and reset the object's state.</div></div>
+          <div class="item"><div class="k">Glasses + ceiling cam</div><div class="v">Works with Meta-style wearables or a fixed fisheye over the prep line. One model, two eyes.</div></div>
+          <div class="item"><div class="k">Proof on tap</div><div class="v">Every action is signed and archived — ready for insurers, inspectors, or a lawsuit you'd rather avoid.</div></div>
+        </div>
+      </div>
+
+      <!-- kitchen POV mock -->
+      <div class="kitchen-pov">
+        <div class="kp-hud">
+          <span class="live">Wearable · Chef G. Ramos</span>
+          <span>Station 02 · 12:06</span>
+        </div>
+        <div class="kp-scene">
+          <div class="kp-obj contam">
+            <div class="thumb thumb-peanuts"></div>
+            <div>
+              <div class="label">Ingredient</div>
+              <div class="name">Peanuts</div>
+            </div>
+            <div class="trace"><span>source</span><span>severe</span></div>
+          </div>
+          <div class="kp-obj contam">
+            <div class="thumb thumb-knife"></div>
+            <div>
+              <div class="label">Tool · chef's knife</div>
+              <div class="name">Knife · 8"</div>
+            </div>
+            <div class="trace"><span>carries: peanut</span></div>
+          </div>
+          <div class="kp-obj contam">
+            <div class="thumb thumb-board"></div>
+            <div>
+              <div class="label">Surface</div>
+              <div class="name">Board A</div>
+            </div>
+            <div class="trace"><span>carries: peanut</span></div>
+          </div>
+          <div class="kp-obj clean">
+            <div class="thumb thumb-hands"></div>
+            <div>
+              <div class="label">Hands · washed 12:04</div>
+              <div class="name">Chef</div>
+            </div>
+            <div class="trace"><span>clean</span></div>
+          </div>
+        </div>
+        <div class="kp-footer">
+          <div class="chip">⚠ Cross-contact</div>
+          <div class="line">Knife + Board A carry <em style="color:var(--terra);font-style:italic;">peanut</em>.</div>
+          <div class="count">3 tagged</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PROTOCOL LOG ═════════ -->
+<section class="band" id="log">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">03</span> &nbsp;· Proof on tap</span>
+      <span>Every event, signed</span>
+    </div>
+    <h2>A <em>protocol log</em><br/>a lawyer would envy.</h2>
+
+    <div class="proto-wrap">
+      <div class="proto-copy">
+        <p class="lede">
+          Every detection, every wash, every plate sent out — recorded to a
+          signed, tamper-evident ledger. Export a single PDF for a health
+          inspection. Replay <b>any minute of any day</b> for an insurance
+          claim. Prove a negative, in court, with timestamps.
+        </p>
+        <div class="proto-stats">
+          <div class="cell"><span class="n"><em>99.8</em>%</span><span class="k">Detection recall · peer-reviewed</span></div>
+          <div class="cell"><span class="n"><em>2.4</em>s</span><span class="k">Median time to alert</span></div>
+          <div class="cell"><span class="n"><em>∞</em></span><span class="k">Retention · your policy</span></div>
+        </div>
+        <div class="proto-list">
+          <div class="p"><span class="k">Tamper-evident</span><span class="v">Each entry hashes into the next. A single change <b>breaks the chain</b> visibly.</span></div>
+          <div class="p"><span class="k">Human readable</span><span class="v">Plain-English timeline, not a raw log. "Chef Ramos washed the knife at 12:05" — not <code>event.6b2a</code>.</span></div>
+          <div class="p"><span class="k">One-click export</span><span class="v">PDF for inspectors, JSON for insurers, video snippets for everyone else. <b>No data leaves your kitchen</b> without your sign-off.</span></div>
+        </div>
+      </div>
+
+      <!-- event log mock -->
+      <div class="log-panel">
+        <div class="log-head">
+          <div>
+            <div class="t">Protocol log · Station 02</div>
+            <div class="station">Osteria Bianca · dinner svc.</div>
+          </div>
+          <div class="meta">
+            <span class="dot"></span>signed · Apr 18
+            <br/>
+            <span style="opacity:0.7;">14 events · 00:12:36</span>
+          </div>
+        </div>
+        <div class="log-body">
+          <div class="log-row warn">
+            <span class="time">12:01:04</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Peanuts</b> detected on Board A · 0.4lb prepped for satay</span>
+            <span class="tag">Detect</span>
+          </div>
+          <div class="log-row warn">
+            <span class="time">12:02:18</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Chef's knife</b> picked up · now carries peanut</span>
+            <span class="tag">Trace</span>
+          </div>
+          <div class="log-row action">
+            <span class="time">12:03:41</span>
+            <span class="marker"></span>
+            <span class="msg">Chef moved to station 03 · <b>Board A</b> flagged for wash</span>
+            <span class="tag">Move</span>
+          </div>
+          <div class="log-row clean">
+            <span class="time">12:05:09</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Knife washed</b> at sink 01 · state cleared</span>
+            <span class="tag">Reset</span>
+          </div>
+          <div class="log-row clean">
+            <span class="time">12:05:52</span>
+            <span class="marker"></span>
+            <span class="msg">Chef's <b>hands washed</b> · 14 sec · state cleared</span>
+            <span class="tag">Reset</span>
+          </div>
+          <div class="log-row safe">
+            <span class="time">12:06:33</span>
+            <span class="marker"></span>
+            <span class="msg">Safe prep resumed · branzino · <b>no allergens in chain</b></span>
+            <span class="tag">Cleared</span>
+          </div>
+          <div class="log-row">
+            <span class="time">12:08:11</span>
+            <span class="marker"></span>
+            <span class="msg">Plate for table 14 · profile: <b>Marcus · peanut severe</b></span>
+            <span class="tag">Plate</span>
+          </div>
+          <div class="log-row safe">
+            <span class="time">12:08:14</span>
+            <span class="marker"></span>
+            <span class="msg">Verdict: <b>safe to serve</b> · signed · hash 0x8f…a3</span>
+            <span class="tag">Sign</span>
+          </div>
+        </div>
+        <div class="log-foot">
+          <span>Block height 184,221</span>
+          <span class="stamp">⬢ chain intact</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CONTAMINATION MAP ═════════ -->
+<section class="band green" id="map">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">04</span> &nbsp;· Kitchen vision</span>
+      <span>Live, until washed</span>
+    </div>
+    <h2>The contamination map,<br/><em>always</em> on the pass.</h2>
+
+    <div class="map-wrap">
+      <div class="map-copy">
+        <p class="lede">
+          Every tool, surface and pair of hands becomes a node on the map.
+          Edges appear the moment a chef picks something up. They stay until
+          the object is washed. Touch a peanut, the edge is red for the rest
+          of service — until the sink clears it.
+        </p>
+        <div class="legend">
+          <div class="row"><span class="sw" style="background:var(--terra);"></span><span class="k">Contaminated</span><span>Object currently carries a tracked allergen.</span></div>
+          <div class="row"><span class="sw" style="background:var(--safe);"></span><span class="k">Clean</span><span>Washed or fresh — safe to touch anything.</span></div>
+          <div class="row"><span class="sw" style="background:rgba(244,241,234,0.3);"></span><span class="k">Unknown</span><span>Not in frame. Alerted until re-verified.</span></div>
+        </div>
+      </div>
+
+      <div class="kitchen-map">
+        <div class="grid"></div>
+        <div class="km-head">
+          <div>
+            <div class="t">Station 02 · 12:06:40</div>
+            <div class="name">Contamination map</div>
+          </div>
+          <div class="legend-hint">
+            <div>3 contam · 4 clean</div>
+            <div style="color:rgba(244,241,234,0.35);">live</div>
+          </div>
+        </div>
+        <div class="km-stage">
+          <!-- SVG lines -->
+          <svg class="km-svg" viewBox="0 0 400 310" preserveAspectRatio="none">
+            <defs>
+              <marker id="arr-r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="rgba(217,119,87,0.55)"/>
+              </marker>
+              <marker id="arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="rgba(110,154,94,0.55)"/>
+              </marker>
+            </defs>
+            <!-- contam edges -->
+            <path d="M 72 60 Q 150 90 200 110" stroke="rgba(217,119,87,0.55)" stroke-width="1.3" fill="none" stroke-dasharray="3 3" marker-end="url(#arr-r)"/>
+            <path d="M 200 110 Q 200 170 152 212" stroke="rgba(217,119,87,0.55)" stroke-width="1.3" fill="none" stroke-dasharray="3 3" marker-end="url(#arr-r)"/>
+            <!-- clean edge -->
+            <path d="M 325 62 Q 330 130 320 200" stroke="rgba(110,154,94,0.45)" stroke-width="1.3" fill="none" stroke-dasharray="3 3"/>
+            <path d="M 325 62 Q 260 120 215 108" stroke="rgba(110,154,94,0.3)" stroke-width="1.1" fill="none" stroke-dasharray="2 4"/>
+          </svg>
+
+          <!-- contam nodes -->
+          <div class="km-node contam" style="top:2%;left:2%;">
+            <span class="k">Peanut jar</span>
+            <div class="sub">source · severe</div>
+          </div>
+          <div class="km-node contam" style="top:28%;left:42%;">
+            <span class="k">Knife 8"</span>
+            <div class="sub">carries · peanut</div>
+          </div>
+          <div class="km-node contam" style="top:60%;left:28%;">
+            <span class="k">Board A</span>
+            <div class="sub">carries · peanut</div>
+          </div>
+
+          <!-- clean nodes -->
+          <div class="km-node clean" style="top:2%;right:3%;">
+            <span class="k">Hands · chef</span>
+            <div class="sub">washed 12:04</div>
+          </div>
+          <div class="km-node clean" style="top:58%;right:2%;">
+            <span class="k">Pan · 03</span>
+            <div class="sub">clean</div>
+          </div>
+          <div class="km-node clean" style="top:88%;left:54%;">
+            <span class="k">Branzino</span>
+            <div class="sub">plated</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CONSUMER: Friend Safety ═════════ -->
+<section class="band" id="consumer" style="background:var(--cream-2);">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">05</span> &nbsp;· For diners</span>
+      <span>One photo, whole table</span>
+    </div>
+    <h2>Eat out together.<br/>Nobody <em>worries</em> together.</h2>
+
+    <div class="friend-wrap">
+      <div class="friend-copy">
+        <p class="lede">
+          You don't have severe allergies. Your friend does. The server isn't
+          sure. That's the moment AllerSight was built for:
+          <b>take one photo, tag the table, get a verdict for every profile</b>
+          — before the first fork touches the plate.
+        </p>
+        <div class="friend-steps">
+          <div class="step">
+            <div class="n">Photograph</div>
+            <div>
+              <div class="title">Snap the dish.</div>
+              <div class="body">A plate, a pan, a to-go container. Works on menus and packaging too.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Tag the table</div>
+            <div>
+              <div class="title">Pick friends from your circle.</div>
+              <div class="body">Their allergen profiles are imported once and kept private on-device. You see their avatar, not their data.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Verdict</div>
+            <div>
+              <div class="title">Know who's safe, in under 2 seconds.</div>
+              <div class="body">Severe allergens flagged in terracotta. Safe bites in green. A note for cross-contact risk when the kitchen isn't AllerSight-verified.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Find more</div>
+            <div>
+              <div class="title">Point to a trusted kitchen nearby.</div>
+              <div class="body">If tonight's restaurant isn't AllerSight-verified, we'll suggest three that are — filtered by each friend's profile.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="friend-phone-stage">
+        <div id="friend-phone"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ TRUSTED BUSINESSES ═════════ -->
+<section class="band" id="trusted" style="background:var(--cream);">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">06</span> &nbsp;· Trusted by AllerSight</span>
+      <span>248 kitchens · growing weekly</span>
+    </div>
+    <div class="trusted-head">
+      <h2>Kitchens that <em>earn</em><br/>the AllerSight mark.</h2>
+      <p class="lede">
+        A kitchen wears the mark only while its feed is live and its protocol
+        log is intact. It appears in the app the moment a diner opens it — and
+        disappears, quietly, the moment the cameras go dark.
+      </p>
+    </div>
+    <div class="trusted-grid">
+      <!-- Cards — all fictional / illustrative -->
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 142 days
+        </div>
+        <div class="biz-name">Osteria Bianca</div>
+        <div class="biz-meta">Italian · tasting menu · SoHo, New York</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">18,402</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>37</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 89 days
+        </div>
+        <div class="biz-name">Mei &amp; Son</div>
+        <div class="biz-meta">Cantonese · dim sum · Mission District, SF</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">11,820</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>22</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 212 days
+        </div>
+        <div class="biz-name">Fleur &amp; Flint</div>
+        <div class="biz-meta">Brasserie · bistro fare · Marylebone, London</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">31,208</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>58</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 56 days
+        </div>
+        <div class="biz-name">Tanaka / omakase</div>
+        <div class="biz-meta">Edo-mae sushi · 8 seats · Shibuya, Tokyo</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">4,214</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>9</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 302 days
+        </div>
+        <div class="biz-name">Casa Rivière</div>
+        <div class="biz-meta">French · two-star · Le Marais, Paris</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">26,901</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>44</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified · 73 days
+        </div>
+        <div class="biz-name">North Pier Hotel</div>
+        <div class="biz-meta">Group catering · 600 covers/day · Copenhagen</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">98,330</div></div>
+          <div><div class="s">Flags caught</div><div class="v"><em>212</em></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ QUOTE / CREDIBILITY ═════════ -->
+<section class="quote-band">
+  <div class="inner">
+    <blockquote>
+      "One bad peanut can close a restaurant. AllerSight is the first
+      system that <em>proves</em> it didn't, in time to matter."
+    </blockquote>
+    <div class="attribution">
+      <div class="avatar"></div>
+      <div class="who">
+        <div class="name">Chef Giulia Ramos</div>
+        <div class="role">Executive chef · Osteria Bianca, NYC</div>
+      </div>
+    </div>
+    <div class="credibility">
+      <div class="cred-cell"><div class="n"><em>248</em></div><div class="k">Kitchens live</div></div>
+      <div class="cred-cell"><div class="n"><em>1.4M</em></div><div class="k">Plates logged</div></div>
+      <div class="cred-cell"><div class="n"><em>0</em></div><div class="k">Reactions since launch</div></div>
+      <div class="cred-cell"><div class="n"><em>4</em></div><div class="k">Insurer partners</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CTA ═════════ -->
+<section class="cta-band" id="cta">
+  <div class="inner">
+    <div>
+      <h2>Two products.<br/>One <em>safer</em> bite.</h2>
+      <p>Whether you run a kitchen or you're trying to feed a friend without a scare — AllerSight is built for the side of the table you're on.</p>
+    </div>
+    <div class="cta-side">
+      <div class="cta-card">
+        <div class="k">For restaurants · pilot in 30 days</div>
+        <div class="t">Put the glasses on your line.</div>
+        <div class="v">Hardware, install and training included. First 90 days audit-ready or your money back.</div>
+        <button class="go">Book a kitchen pilot →</button>
+      </div>
+      <div class="cta-card alt">
+        <div class="k">For diners · free, forever</div>
+        <div class="t">The app that reads the plate for your friends.</div>
+        <div class="v">iOS and Android. No ads, no upsells. Your network's allergen data stays on-device.</div>
+        <button class="go">Download AllerSight →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ FOOTER ═════════ -->
+<footer class="site">
+  <div class="inner">
+    <div class="brand-block">
+      <div class="logo">aller<span class="lens"></span>sight</div>
+      <p>A real-time allergen safety system that tracks contamination, proves compliance, and connects safe kitchens to the people eating at them.</p>
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(244,241,234,0.5);">Est. 2026 · Brooklyn, NY</div>
+    </div>
+    <div>
+      <h5>For kitchens</h5>
+      <ul>
+        <li><a href="#">Kitchen pilot</a></li>
+        <li><a href="#">Protocol log</a></li>
+        <li><a href="#">Compliance</a></li>
+        <li><a href="#">Hardware</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For diners</h5>
+      <ul>
+        <li><a href="#">Get the app</a></li>
+        <li><a href="#">Trusted kitchens</a></li>
+        <li><a href="#">Friend circles</a></li>
+        <li><a href="#">Privacy</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Company</h5>
+      <ul>
+        <li><a href="#">Manifesto</a></li>
+        <li><a href="#">Science</a></li>
+        <li><a href="#">Press</a></li>
+        <li><a href="#">Careers</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="legal">
+    <span>© 2026 AllerSight, Inc.</span>
+    <span>SOC 2 · HIPAA-aligned · FDA-referenced audit trail</span>
+  </div>
+</footer>
+
+<!-- Tweaks -->
+<div class="tweaks" id="tweaks">
+  <h4>Tweaks</h4>
+  <label>Accent</label>
+  <div class="row" data-group="accent">
+    <button class="opt" data-val="#d97757">Terracotta</button>
+    <button class="opt" data-val="#b85a3a">Rust</button>
+    <button class="opt" data-val="#c2923a">Ochre</button>
+  </div>
+  <label>Hero headline</label>
+  <div class="row" data-group="headline">
+    <button class="opt" data-val="proven">Proven</button>
+    <button class="opt" data-val="traced">Traced</button>
+    <button class="opt" data-val="witnessed">Witnessed</button>
+  </div>
+  <label>Lead CTA</label>
+  <div class="row" data-group="cta">
+    <button class="opt" data-val="kitchen">Kitchen-first</button>
+    <button class="opt" data-val="diner">Diner-first</button>
+  </div>
+</div>
+
+<!-- ═════════ REACT — friend-safe phone ═════════ -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="components/ios-frame.jsx" type="text/babel"></script>
+<script type="text/babel">
+  const CREAM = '#f4f1ea';
+  const INK = '#15211a';
+  const GREEN = '#1f3d2b';
+  const TERRA = '#d97757';
+  const SAFE = '#6e9a5e';
+  const MUTED = 'rgba(21,33,26,0.55)';
+
+  function FriendRow({ name, status, detail, tone, avatar }) {
+    const colors = {
+      safe: { bg: 'rgba(110,154,94,0.14)', fg: '#4b7a3f', border: 'rgba(110,154,94,0.35)' },
+      danger: { bg: 'rgba(217,119,87,0.14)', fg: '#a1452a', border: 'rgba(217,119,87,0.45)' },
+      caution: { bg: 'rgba(217,163,78,0.15)', fg: '#8a6418', border: 'rgba(217,163,78,0.4)' },
+    }[tone];
+    return (
+      <div style={{
+        display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 12,
+        alignItems: 'center', padding: '12px 0',
+        borderBottom: '0.5px solid rgba(21,33,26,0.12)',
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%', background: avatar,
+          border: '0.5px solid rgba(21,33,26,0.12)', flexShrink: 0,
+        }}/>
+        <div>
+          <div style={{
+            fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic',
+            fontSize: 20, color: INK, lineHeight: 1, letterSpacing: -0.3,
+          }}>{name}</div>
+          <div style={{
+            fontFamily: '"Inter", system-ui', fontSize: 11, color: MUTED,
+            marginTop: 4, lineHeight: 1.3,
+          }}>{detail}</div>
+        </div>
+        <div style={{
+          fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase',
+          color: colors.fg, fontWeight: 700, padding: '5px 10px',
+          background: colors.bg, borderRadius: 5, border: `0.5px solid ${colors.border}`,
+          whiteSpace: 'nowrap',
+        }}>{status}</div>
+      </div>
+    );
+  }
+
+  function FriendSafetyResult() {
+    return (
+      <IOSDevice width={360} height={720}>
+        {/* hero band — food image placeholder */}
+        <div style={{
+          marginTop: 58,
+          height: 220, position: 'relative', overflow: 'hidden',
+          background: `
+            radial-gradient(ellipse at 30% 45%, #d9a066 0%, #8a5a33 38%, transparent 68%),
+            radial-gradient(ellipse at 70% 55%, #c68750 0%, #6a4222 42%, transparent 70%),
+            radial-gradient(circle at 50% 50%, #a8d87a 0%, transparent 22%),
+            linear-gradient(135deg, #3a2a1e 0%, #1a1410 100%)
+          `,
+        }}>
+          {/* meta overlay */}
+          <div style={{
+            position: 'absolute', top: 14, left: 16, right: 16,
+            display: 'flex', justifyContent: 'space-between',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+            letterSpacing: 1.4, textTransform: 'uppercase',
+            color: 'rgba(244,241,234,0.85)', fontWeight: 500,
+          }}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:6}}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:TERRA}}/>Scan · 14:03
+            </span>
+            <span>№0412</span>
+          </div>
+          {/* dish name card */}
+          <div style={{
+            position: 'absolute', bottom: 14, left: 16, right: 16,
+            background: 'rgba(14,22,17,0.78)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+            border: '0.5px solid rgba(244,241,234,0.2)',
+            borderRadius: 12, padding: '10px 14px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <div>
+              <div style={{
+                fontFamily: '"Inter", system-ui', fontSize: 9,
+                letterSpacing: 1.6, textTransform: 'uppercase',
+                color: 'rgba(244,241,234,0.55)', fontWeight: 600,
+              }}>Identified</div>
+              <div style={{
+                fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic',
+                fontSize: 22, color: CREAM, letterSpacing: -0.3, lineHeight: 1.1,
+                marginTop: 2,
+              }}>Pad thai · rice noodle</div>
+            </div>
+            <div style={{
+              padding: '5px 10px', borderRadius: 999,
+              background: 'rgba(110,154,94,0.2)',
+              border: '0.5px solid rgba(110,154,94,0.45)',
+              color: '#9dc08e', fontSize: 9, letterSpacing: 1.5,
+              textTransform: 'uppercase', fontWeight: 600,
+            }}>2 / 3 safe</div>
+          </div>
+        </div>
+
+        {/* table title */}
+        <div style={{
+          padding: '20px 22px 8px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        }}>
+          <div style={{
+            fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic',
+            fontSize: 28, color: INK, letterSpacing: -0.6, lineHeight: 1.1,
+            paddingBottom: 2,
+          }}>Your table, <span style={{color:TERRA}}>tonight</span></div>
+        </div>
+        <div style={{
+          padding: '6px 22px 0', fontSize: 11, color: MUTED,
+          letterSpacing: 1.6, textTransform: 'uppercase', fontWeight: 600,
+        }}>Fri · Osteria Bianca</div>
+
+        {/* friend rows */}
+        <div style={{ padding: '8px 22px 0' }}>
+          <FriendRow
+            name="Priya" status="Safe"
+            detail="no allergens in this dish · profile verified"
+            tone="safe"
+            avatar="radial-gradient(circle at 40% 35%, #e9c59a 0%, #b88858 50%, #6a3e1e 100%)"
+          />
+          <FriendRow
+            name="Marcus" status="Do not"
+            detail="peanut · severe — trace oil in wok"
+            tone="danger"
+            avatar="radial-gradient(circle at 40% 35%, #d4a578 0%, #8a5432 50%, #4a2818 100%)"
+          />
+          <FriendRow
+            name="June" status="Safe"
+            detail="gluten — noodles are rice · confirmed"
+            tone="safe"
+            avatar="radial-gradient(circle at 40% 35%, #f0d4b0 0%, #a8764a 50%, #5a3a20 100%)"
+          />
+          <FriendRow
+            name="Ana" status="Caution"
+            detail="egg — sauce may contain · ask server"
+            tone="caution"
+            avatar="radial-gradient(circle at 40% 35%, #e8c49a 0%, #a8774a 50%, #5a3820 100%)"
+          />
+        </div>
+
+        {/* trusted-kitchen hint */}
+        <div style={{
+          margin: '12px 22px 0', padding: '14px 16px',
+          background: GREEN, color: CREAM, borderRadius: 14,
+          display: 'grid', gridTemplateColumns: '28px 1fr auto', gap: 12, alignItems: 'center',
+        }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%',
+            border: `1px solid ${TERRA}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:TERRA}}/>
+          </div>
+          <div>
+            <div style={{fontSize:9,letterSpacing:1.5,textTransform:'uppercase',color:TERRA,fontWeight:600}}>AllerSight kitchen · live</div>
+            <div style={{fontFamily:'"Instrument Serif",Georgia,serif',fontStyle:'italic',fontSize:16,marginTop:2,letterSpacing:-0.2}}>Kitchen has a protocol log</div>
+          </div>
+          <div style={{fontSize:9,letterSpacing:1.4,textTransform:'uppercase',color:'rgba(244,241,234,0.55)',fontWeight:600,textAlign:'right'}}>142 d</div>
+        </div>
+
+        {/* bottom verdict CTA */}
+        <div style={{ padding: '16px 22px 30px', display: 'flex', gap: 10 }}>
+          <button style={{
+            flex: 1, height: 48, borderRadius: 999,
+            background: INK, color: CREAM, border: 'none',
+            fontFamily: '"Inter", system-ui', fontSize: 13, fontWeight: 600,
+            letterSpacing: 0.3,
+          }}>Share with table</button>
+          <button style={{
+            width: 48, height: 48, borderRadius: '50%',
+            background: 'transparent', border: `1px solid ${INK}`,
+            color: INK, fontSize: 18,
+            fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic',
+          }}>♡</button>
+        </div>
+      </IOSDevice>
+    );
+  }
+
+  // mount
+  const root = ReactDOM.createRoot(document.getElementById('friend-phone'));
+  root.render(<FriendSafetyResult/>);
+</script>
+
+<!-- ═════════ TWEAKS ═════════ -->
+<script>
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#d97757",
+  "headline": "proven",
+  "cta": "kitchen"
+}/*EDITMODE-END*/;
+
+(function(){
+  const state = Object.assign({}, TWEAK_DEFAULTS);
+  const panel = document.getElementById('tweaks');
+
+  function applyAccent(v) {
+    document.documentElement.style.setProperty('--terra', v);
+  }
+  function applyHeadline(v) {
+    const el = document.querySelector('.hero h1 em');
+    if (el) el.textContent = v + '.';
+  }
+  function applyCta(v) {
+    const pair = document.querySelector('.hero-ctas .pair');
+    if (!pair) return;
+    const [a, b] = pair.children;
+    if (v === 'diner') {
+      a.classList.remove('btn-primary'); a.classList.add('btn-ghost');
+      b.classList.remove('btn-ghost'); b.classList.add('btn-primary');
+      a.textContent = 'Install in your kitchen';
+      b.textContent = 'Download for diners →';
+      pair.insertBefore(b, a);
+    } else {
+      // reset ordering — kitchen-first
+      const kitchen = [...pair.children].find(c => c.textContent.includes('kitchen') || c.textContent.includes('Install'));
+      const diner = [...pair.children].find(c => c.textContent.toLowerCase().includes('diner') || c.textContent.toLowerCase().includes('download'));
+      if (kitchen && diner) {
+        kitchen.classList.add('btn-primary'); kitchen.classList.remove('btn-ghost');
+        diner.classList.add('btn-ghost'); diner.classList.remove('btn-primary');
+        kitchen.textContent = 'Install in your kitchen →';
+        diner.textContent = 'Download for diners';
+        pair.insertBefore(kitchen, diner);
+      }
+    }
+  }
+  function applyAll() {
+    applyAccent(state.accent);
+    applyHeadline(state.headline);
+    applyCta(state.cta);
+  }
+  function refreshActive() {
+    panel.querySelectorAll('.row').forEach(row => {
+      const grp = row.dataset.group;
+      row.querySelectorAll('button.opt').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === String(state[grp]));
+      });
+    });
+  }
+  panel.querySelectorAll('.row').forEach(row => {
+    const grp = row.dataset.group;
+    row.querySelectorAll('button.opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state[grp] = btn.dataset.val;
+        applyAll();
+        refreshActive();
+        try {
+          window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[grp]: btn.dataset.val}}, '*');
+        } catch(e) {}
+      });
+    });
+  });
+
+  // protocol handshake
+  window.addEventListener('message', e => {
+    if (!e.data) return;
+    if (e.data.type === '__activate_edit_mode') {
+      panel.classList.add('open');
+    } else if (e.data.type === '__deactivate_edit_mode') {
+      panel.classList.remove('open');
+    }
+  });
+  applyAll();
+  refreshActive();
+  try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e) {}
+})();
+</script>
+
+</body>
+</html>

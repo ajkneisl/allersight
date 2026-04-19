@@ -1,0 +1,1607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AllerSight — real-time allergen safety, from kitchen to plate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --cream: #f4f1ea;
+    --cream-2: #eae6dc;
+    --ink: #15211a;
+    --green: #1f3d2b;
+    --green-deep: #132319;
+    --terra: #d97757;
+    --amber: #d9a34e;
+    --safe: #6e9a5e;
+    --muted: rgba(21,33,26,0.55);
+    --line: rgba(21,33,26,0.15);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--cream); color: var(--ink); }
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* HEADER */
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(244,241,234,0.9);
+    backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border-bottom: 0.5px solid var(--line);
+  }
+  .nav { max-width: 1320px; margin: 0 auto; padding: 18px 36px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 26px; letter-spacing: -0.5px; display: inline-flex; align-items: center; gap: 3px; line-height: 1; }
+  .brand .lens-svg { width: 20px; height: 20px; display: block; flex: 0 0 auto; transform: translateY(-1px); }
+  .nav ul { list-style: none; padding: 0; margin: 0; display: flex; gap: 32px; font-size: 13px; }
+  .nav ul a { color: var(--ink); opacity: 0.75; transition: opacity 0.15s, color 0.15s; }
+  .nav ul a:hover { color: var(--terra); opacity: 1; }
+  .nav .ctas { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s, border-color 0.15s; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
+  .btn-primary { background: var(--ink); color: var(--cream); }
+  .btn-primary:hover { background: var(--green); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--ink); }
+  @media (max-width: 960px) { .nav ul { display: none; } .nav { padding: 14px 20px; } }
+
+  /* HERO */
+  .hero { position: relative; max-width: 1320px; margin: 0 auto; padding: 56px 36px 90px; }
+  .hero .eyebrow-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; margin-bottom: 32px;
+  }
+  .hero .eyebrow-row .e-left { display: inline-flex; align-items: center; gap: 12px; }
+  .hero .eyebrow-row .e-left::before { content: ''; width: 28px; height: 1px; background: var(--terra); }
+
+  .hero-grid {
+    display: grid; grid-template-columns: 1.15fr 0.85fr;
+    gap: 80px; align-items: center;
+  }
+  @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; gap: 50px; } }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: clamp(56px, 7.2vw, 108px);
+    line-height: 1.02; letter-spacing: -2.8px; margin: 0 0 28px;
+    font-weight: 400; text-wrap: pretty;
+  }
+  .hero h1 em { font-style: italic; color: var(--green); }
+  .hero h1 .swipe { position: relative; display: inline-block; font-style: italic; padding: 0 2px; margin-right: 0.12em; }
+  .hero h1 .swipe::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0.08em;
+    height: 0.18em; background: var(--terra); opacity: 0.32;
+    border-radius: 2px; pointer-events: none;
+  }
+  .hero .lede { font-size: 18px; line-height: 1.55; color: var(--muted); margin: 0 0 30px; max-width: 560px; text-wrap: pretty; }
+  .hero .lede b { color: var(--ink); font-weight: 500; }
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .hero-ctas .btn { padding: 13px 22px; font-size: 14px; }
+  .hero-trust {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    padding-top: 22px; border-top: 0.5px solid var(--line);
+    font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .hero-trust span { display: inline-flex; align-items: center; gap: 8px; }
+  .hero-trust span::before { content:''; width: 5px; height: 5px; border-radius: 50%; background: var(--terra); }
+
+  /* Hero phone stage */
+  .phone-stage {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 720px;
+  }
+  .phone-shadow {
+    position: absolute; inset: 10% 15% 5%; z-index: 0;
+    background: radial-gradient(ellipse at 50% 60%, rgba(21,33,26,0.25) 0%, transparent 70%);
+    filter: blur(30px);
+  }
+  /* Orbiting caption tags */
+  .orbit {
+    position: absolute; z-index: 2;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 1.6px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+    display: inline-flex; align-items: center; gap: 10px;
+    white-space: nowrap;
+  }
+  .orbit::before { content: ''; width: 22px; height: 1px; background: rgba(21,33,26,0.3); }
+  .orbit em { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink); letter-spacing: -0.2px; text-transform: none; font-weight: 400; }
+
+  /* LIVE TICKER */
+  .ticker {
+    margin: 60px auto 0; max-width: 1320px;
+    border-top: 0.5px solid var(--line); border-bottom: 0.5px solid var(--line);
+    padding: 16px 0; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+  .ticker .track { display: inline-flex; gap: 48px; white-space: nowrap; animation: tickerScroll 52s linear infinite; }
+  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .ticker .item {
+    display: inline-flex; align-items: center; gap: 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .ticker .item .d { width: 5px; height: 5px; border-radius: 50%; background: var(--terra); }
+  .ticker .item .d.g { background: var(--safe); }
+  .ticker .item em {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 15px;
+    color: var(--ink); text-transform: none; letter-spacing: -0.2px; font-weight: 400;
+  }
+
+  /* BAND BASE */
+  .band { padding: 130px 36px; position: relative; }
+  .band .inner { max-width: 1320px; margin: 0 auto; }
+  .band h2 {
+    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-size: clamp(44px, 5.6vw, 82px); line-height: 1.02;
+    letter-spacing: -1.8px; margin: 0 0 26px; text-wrap: pretty;
+  }
+  .band h2 em { font-style: italic; color: var(--terra); }
+  .band .section-eyebrow {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; letter-spacing: 2.6px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin-bottom: 28px;
+    padding-bottom: 18px; border-bottom: 0.5px solid var(--line);
+  }
+  .band .section-eyebrow .num { color: var(--terra); }
+  .band.dark { background: var(--ink); color: var(--cream); }
+  .band.dark h2 { color: var(--cream); }
+  .band.dark h2 em { color: var(--terra); }
+  .band.dark .section-eyebrow { color: rgba(244,241,234,0.6); border-color: rgba(244,241,234,0.2); }
+  .band.dark .section-eyebrow .num { color: var(--terra); }
+
+  /* §02 WEARABLE VISION */
+  .wearable-grid {
+    display: grid; grid-template-columns: 1fr 1.1fr;
+    gap: 72px; align-items: center;
+  }
+  @media (max-width: 980px) { .wearable-grid { grid-template-columns: 1fr; gap: 40px; } }
+  .wearable-copy p.lede {
+    font-size: 17px; line-height: 1.6; color: rgba(244,241,234,0.72);
+    margin: 0 0 30px; max-width: 520px; text-wrap: pretty;
+  }
+  .wearable-copy p.lede b { color: var(--cream); font-weight: 500; }
+  .wearable-copy .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 32px; padding-top: 6px; }
+  .wearable-copy .feat .item { border-top: 0.5px solid rgba(244,241,234,0.2); padding-top: 14px; }
+  .wearable-copy .feat .k {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 22px; color: var(--terra); margin-bottom: 6px; letter-spacing: -0.3px;
+  }
+  .wearable-copy .feat .v { font-size: 13px; line-height: 1.5; color: rgba(244,241,234,0.78); }
+
+  /* POV photo (real restaurant image behind the HUD) */
+  .pov-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: block; filter: contrast(1.02) saturate(1.05); }
+
+  /* POV scene — realistic plated dish */
+  .pov-scene {
+    position: relative; aspect-ratio: 4 / 5;
+    border-radius: 24px; overflow: hidden;
+    box-shadow: 0 60px 120px rgba(0,0,0,0.55);
+    border: 0.5px solid rgba(244,241,234,0.08);
+    background-color: #1e1408;
+    background-image: linear-gradient(180deg, #3a2a1c 0%, #1e1408 40%, #0c0804 100%);
+  }
+  /* walnut woodgrain subtle */
+  .pov-scene::before {
+    content:''; position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(92deg, rgba(0,0,0,0.08) 0 2px, transparent 2px 26px),
+      repeating-linear-gradient(92deg, rgba(120,80,40,0.06) 0 1px, transparent 1px 48px);
+    pointer-events: none;
+  }
+  /* rim of warm light at top */
+  .pov-scene::after {
+    content:''; position: absolute; left: 0; right: 0; top: 0; height: 40%;
+    background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(240,205,150,0.22) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  /* The plate */
+  .pov-plate {
+    position: absolute; left: 10%; right: 10%; top: 30%; bottom: 18%;
+    border-radius: 50%;
+    z-index: 1;
+    background: radial-gradient(ellipse at 45% 40%, #f0e8d5 0%, #ddd1ba 40%, #a99f89 75%, #3a3125 100%);
+    box-shadow:
+      0 30px 60px rgba(0,0,0,0.7),
+      inset 0 -20px 40px rgba(58,49,37,0.4),
+      inset 0 10px 20px rgba(255,245,220,0.25);
+  }
+  .pov-plate::before {
+    content:''; position: absolute; inset: 12%; border-radius: 50%;
+    background: radial-gradient(ellipse at 45% 35%, #d8cdb5 0%, #b8ac92 60%, #7a705c 100%);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+  }
+  /* Food on plate — absolutely positioned blobs inside plate */
+  .pov-food { position: absolute; border-radius: 50%; filter: blur(1px); }
+  .pov-food.noodle {
+    left: 28%; top: 38%; width: 46%; height: 32%;
+    background:
+      radial-gradient(ellipse at 30% 40%, #e8b06a 0%, #c88a4a 45%, #8a5824 80%),
+      radial-gradient(ellipse at 70% 60%, #d9a464 0%, #a87a3c 60%);
+    background-blend-mode: multiply;
+    filter: blur(0.8px);
+    transform: rotate(-8deg);
+  }
+  .pov-food.herb {
+    left: 24%; top: 56%; width: 14%; height: 10%;
+    background: radial-gradient(ellipse at 50% 40%, #9dc672 0%, #5c8a35 60%, #2e4818 100%);
+    filter: blur(0.6px);
+  }
+  .pov-food.chili {
+    left: 58%; top: 42%; width: 10%; height: 7%;
+    background: radial-gradient(ellipse at 40% 40%, #e85838 0%, #a8281a 70%, #6a1810 100%);
+    filter: blur(0.5px);
+  }
+  .pov-food.protein {
+    left: 48%; top: 56%; width: 22%; height: 14%;
+    background: radial-gradient(ellipse at 45% 40%, #f2c886 0%, #c8945c 50%, #7a4820 85%);
+    filter: blur(0.6px);
+    transform: rotate(12deg);
+  }
+  .pov-food.crunch {
+    left: 36%; top: 36%; width: 12%; height: 8%;
+    background: radial-gradient(ellipse at 40% 35%, #f5d498 0%, #c89454 60%, #6a3e18 100%);
+    filter: blur(0.4px);
+  }
+  /* steam/haze */
+  .pov-steam {
+    position: absolute; left: 30%; right: 30%; top: 22%; height: 18%;
+    background: radial-gradient(ellipse at 50% 80%, rgba(255,240,220,0.18) 0%, transparent 70%);
+    pointer-events: none;
+    filter: blur(8px);
+  }
+  /* vignette on top of everything */
+  .pov-vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 100% 80% at 50% 55%, transparent 55%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none; z-index: 2;
+  }
+  .pov-scanlines {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(244,241,234,0.025) 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay; pointer-events: none; z-index: 2;
+  }
+
+  /* HUD — corner chrome */
+  .pov-hud {
+    position: absolute; inset: 0; z-index: 3;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pov-hud .top {
+    position: absolute; top: 20px; left: 22px; right: 22px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9.5px; letter-spacing: 1.6px; text-transform: uppercase;
+    color: rgba(244,241,234,0.88); font-weight: 500;
+  }
+  .pov-hud .top .live { display: inline-flex; align-items: center; gap: 8px; }
+  .pov-hud .top .live::before { content:''; width: 6px; height: 6px; border-radius: 50%; background: var(--terra); box-shadow: 0 0 10px var(--terra); animation: asPulseDot 1.4s ease-in-out infinite; }
+  @keyframes asPulseDot { 0%,100%{opacity:0.4} 50%{opacity:1} }
+  @keyframes alPulse { 0% { transform: scale(0.92); opacity: 0.55; } 70% { transform: scale(1.18); opacity: 0; } 100% { transform: scale(1.18); opacity: 0; } }
+  @keyframes sheetUp { from { transform: translateY(60%); opacity: 0; } to { transform: none; opacity: 1; } }
+  .pov-hud .top .right { display: flex; gap: 14px; color: rgba(244,241,234,0.55); }
+
+  /* corner brackets */
+  .pov-hud .bracket {
+    position: absolute; width: 22px; height: 22px;
+    border-color: rgba(244,241,234,0.7);
+  }
+  .pov-hud .bracket.tl { top: 44px; left: 22px; border-top: 1.2px solid; border-left: 1.2px solid; }
+  .pov-hud .bracket.tr { top: 44px; right: 22px; border-top: 1.2px solid; border-right: 1.2px solid; }
+  .pov-hud .bracket.bl { bottom: 80px; left: 22px; border-bottom: 1.2px solid; border-left: 1.2px solid; }
+  .pov-hud .bracket.br { bottom: 80px; right: 22px; border-bottom: 1.2px solid; border-right: 1.2px solid; }
+
+  /* Annotations */
+  .anno {
+    position: absolute; z-index: 4;
+    display: flex; flex-direction: column; gap: 6px;
+    animation: annoIn 0.6s both;
+  }
+  @keyframes annoIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .anno .pt {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 1.5px solid var(--cream); background: rgba(217,119,87,0.55);
+    box-shadow: 0 0 0 3px rgba(217,119,87,0.18), 0 0 16px rgba(217,119,87,0.5);
+  }
+  .anno.safe .pt { background: rgba(110,154,94,0.55); box-shadow: 0 0 0 3px rgba(110,154,94,0.18), 0 0 16px rgba(110,154,94,0.4); }
+  .anno .line {
+    width: 1px; height: 28px; background: rgba(244,241,234,0.5); margin-left: 5px;
+  }
+  .anno .card {
+    background: rgba(10,16,13,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(244,241,234,0.2);
+    border-radius: 10px; padding: 9px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase;
+    color: rgba(244,241,234,0.7); font-weight: 500;
+    min-width: 130px;
+  }
+  .anno .card .k {
+    display: block;
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 15px; color: var(--cream); letter-spacing: -0.2px;
+    text-transform: none; font-weight: 400; margin-bottom: 2px; line-height: 1.1;
+  }
+  .anno.warn .card .k { color: #f2b89b; }
+  .anno.warn .card { border-color: rgba(217,119,87,0.4); }
+  .anno.safe .card .k { color: #a8c79b; }
+  .anno.safe .card { border-color: rgba(110,154,94,0.35); }
+  .anno.right { align-items: flex-end; }
+
+  .pov-verdict {
+    position: absolute; left: 22px; right: 22px; bottom: 20px; z-index: 5;
+    background: rgba(10,16,13,0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 0.5px solid rgba(217,119,87,0.35);
+    border-radius: 14px; padding: 12px 16px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+  }
+  .pov-verdict .chip {
+    font-family: 'JetBrains Mono', monospace;
+    padding: 5px 10px; border-radius: 999px;
+    font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(217,119,87,0.18); color: var(--terra);
+    border: 0.5px solid rgba(217,119,87,0.45); font-weight: 600;
+    white-space: nowrap;
+  }
+  .pov-verdict .line {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 16px; color: var(--cream); letter-spacing: -0.2px; line-height: 1.25;
+  }
+  .pov-verdict .line em { font-style: italic; color: #f2b89b; }
+  .pov-verdict .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px; letter-spacing: 1.2px; color: rgba(244,241,234,0.55);
+    text-align: right; line-height: 1.4;
+  }
+
+  /* §03 CONTAMINATION MEMORY + PROTOCOL LOG */
+  .memory-grid {
+    display: grid; grid-template-columns: 1.1fr 1fr;
+    gap: 72px; align-items: stretch;
+  }
+  @media (max-width: 1000px) { .memory-grid { grid-template-columns: 1fr; gap: 40px; } }
+  .memory-copy p.lede { font-size: 17px; line-height: 1.6; color: var(--muted); margin: 0 0 26px; max-width: 560px; text-wrap: pretty; }
+  .memory-copy p.lede b { color: var(--ink); font-weight: 500; }
+
+  .memory-track {
+    display: grid; grid-template-columns: 1fr; gap: 0;
+    margin-bottom: 30px;
+    border: 0.5px solid var(--line);
+  }
+  .memory-track .row {
+    padding: 16px 20px;
+    display: grid; grid-template-columns: 92px 1fr;
+    gap: 18px; align-items: center;
+    border-bottom: 0.5px solid var(--line);
+    background: var(--cream);
+  }
+  .memory-track .row:last-child { border-bottom: none; }
+  .memory-track .row .kt {
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 15px; color: var(--terra); letter-spacing: -0.2px;
+  }
+  .memory-track .row.cleared .kt { color: var(--safe); }
+  .memory-track .row .body { font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .memory-track .row .body b { color: var(--ink); font-weight: 500; }
+
+  .memory-cta {
+    padding-top: 22px; border-top: 0.5px solid var(--line);
+    display: flex; flex-direction: column; gap: 10px;
+    font-size: 13px; color: var(--muted); max-width: 520px;
+  }
+  .memory-cta b { color: var(--ink); font-weight: 500; }
+
+  /* Protocol log panel */
+  .log-panel {
+    background: var(--ink); color: var(--cream);
+    border-radius: 18px; overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 40px 100px rgba(21,33,26,0.3);
+    display: flex; flex-direction: column;
+  }
+  .log-head {
+    padding: 20px 22px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 0.5px solid rgba(244,241,234,0.15);
+    background: #0e1611;
+  }
+  .log-head .t { font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--terra); font-weight: 600; }
+  .log-head .station { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 18px; color: var(--cream); letter-spacing: -0.2px; margin-top: 4px; }
+  .log-head .meta { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(244,241,234,0.55); text-align: right; line-height: 1.5; }
+  .log-head .meta .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--safe); margin-right: 5px; box-shadow: 0 0 8px var(--safe); }
+
+  .log-body { padding: 6px 0; flex: 1; }
+  .log-row {
+    display: grid; grid-template-columns: 72px 14px 1fr auto;
+    gap: 14px; padding: 10px 22px; align-items: center;
+    font-size: 12px; color: rgba(244,241,234,0.85);
+    position: relative;
+  }
+  .log-row + .log-row::before { content: ''; position: absolute; top: -1px; left: 22px; right: 22px; height: 0.5px; background: rgba(244,241,234,0.08); }
+  .log-row .time { color: rgba(244,241,234,0.55); font-size: 11px; }
+  .log-row .marker { width: 10px; height: 10px; border-radius: 50%; background: rgba(244,241,234,0.3); justify-self: center; }
+  .log-row.warn .marker { background: var(--terra); box-shadow: 0 0 10px var(--terra); }
+  .log-row.warn .msg { color: var(--terra); }
+  .log-row.action .marker { background: var(--amber); }
+  .log-row.clean .marker { background: var(--safe); box-shadow: 0 0 8px rgba(110,154,94,0.5); }
+  .log-row.clean .msg b { color: #a8c79b; }
+  .log-row.safe .marker { background: var(--safe); }
+  .log-row .msg { line-height: 1.4; }
+  .log-row .msg b {
+    color: var(--cream); font-weight: 500;
+    font-family: 'Instrument Serif', Georgia, serif; font-style: italic;
+    font-size: 15px;
+  }
+  .log-row .tag {
+    font-size: 9px; letter-spacing: 1.4px; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 4px; font-weight: 600;
+    background: rgba(244,241,234,0.08); color: rgba(244,241,234,0.65);
+    border: 0.5px solid rgba(244,241,234,0.15);
+  }
+  .log-row.warn .tag { background: rgba(217,119,87,0.14); color: var(--terra); border-color: rgba(217,119,87,0.4); }
+  .log-row.clean .tag { background: rgba(110,154,94,0.14); color: #a8c79b; border-color: rgba(110,154,94,0.35); }
+  .log-foot {
+    padding: 14px 22px; background: #0a120d;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(244,241,234,0.55);
+    border-top: 0.5px solid rgba(244,241,234,0.15);
+  }
+  .log-foot .stamp { color: var(--terra); }
+
+  /* §04 CONSUMER */
+  .consumer-grid { display: grid; grid-template-columns: 1fr 1.05fr; gap: 72px; align-items: center; }
+  @media (max-width: 980px) { .consumer-grid { grid-template-columns: 1fr; gap: 40px; } }
+  .consumer-copy p.lede { font-size: 17px; line-height: 1.6; color: var(--muted); margin: 0 0 30px; max-width: 520px; }
+  .consumer-copy p.lede b { color: var(--ink); font-weight: 500; }
+  .friend-steps { display: flex; flex-direction: column; gap: 14px; counter-reset: fs; }
+  .friend-steps .step { display: grid; grid-template-columns: auto 1fr; gap: 18px; padding-top: 14px; border-top: 0.5px solid var(--line); }
+  .friend-steps .step .n { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--terra); font-weight: 600; counter-increment: fs; }
+  .friend-steps .step .n::before { content: counter(fs, decimal-leading-zero) " / "; color: var(--muted); }
+  .friend-steps .step .title { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 22px; color: var(--ink); letter-spacing: -0.3px; margin-bottom: 6px; line-height: 1.1; }
+  .friend-steps .step .body { font-size: 13px; line-height: 1.55; color: var(--muted); }
+  .consumer-phone-stage { display: flex; justify-content: center; position: relative; }
+  .consumer-phone-stage .drop { position: absolute; inset: 8% 10% 4%; background: radial-gradient(ellipse at 50% 60%, rgba(21,33,26,0.22) 0%, transparent 65%); filter: blur(26px); z-index: 0; }
+
+  /* §05 TRUSTED */
+  .trusted-head { display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px; align-items: end; margin-bottom: 48px; }
+  @media (max-width: 820px) { .trusted-head { grid-template-columns: 1fr; gap: 20px; } }
+  .trusted-head p.lede { font-size: 15px; line-height: 1.6; color: var(--muted); max-width: 460px; margin: 0; }
+  .trusted-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 0.5px solid var(--line); }
+  @media (max-width: 900px) { .trusted-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .trusted-grid { grid-template-columns: 1fr; } }
+  .t-card { background: var(--cream); padding: 32px 28px 26px; display: flex; flex-direction: column; gap: 14px; min-height: 280px; transition: background 0.2s; position: relative; }
+  .t-card:hover { background: var(--cream-2); }
+  .t-card .verified { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--green); font-weight: 600; }
+  .t-card .biz-name { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 30px; color: var(--ink); letter-spacing: -0.6px; line-height: 1.08; margin-top: 4px; }
+  .t-card .biz-meta { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .t-card .biz-stats { margin-top: auto; padding-top: 14px; border-top: 0.5px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .t-card .biz-stats .s { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .t-card .biz-stats .v { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 20px; color: var(--ink); letter-spacing: -0.3px; margin-top: 2px; line-height: 1.1; }
+  .t-card .biz-stats .v em { color: var(--terra); font-style: italic; }
+
+  .trust-badge {
+    margin-top: 40px; padding: 28px 32px;
+    background: var(--green-deep); color: var(--cream); border-radius: 16px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 28px; align-items: center;
+  }
+  @media (max-width: 720px) { .trust-badge { grid-template-columns: 1fr; gap: 16px; } }
+  .trust-badge .mark {
+    width: 72px; height: 72px; border-radius: 50%;
+    border: 1.5px solid var(--terra);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .trust-badge .mark::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background: var(--terra); }
+  .trust-badge .mark .ring { position: absolute; inset: -8px; border: 1px solid rgba(217,119,87,0.4); border-radius: 50%; }
+  .trust-badge .m {
+    font-family: 'Instrument Serif', Georgia, serif; font-weight: 400;
+    font-size: 26px; letter-spacing: -0.4px; line-height: 1.2; color: var(--cream);
+  }
+  .trust-badge .m em { font-style: italic; color: var(--terra); }
+  .trust-badge .m .sub { display: block; margin-top: 6px; font-style: normal; font-size: 12px; color: rgba(244,241,234,0.65); letter-spacing: 0; font-family: 'Inter', system-ui; line-height: 1.5; }
+  .trust-badge .btn-ghost { border-color: rgba(244,241,234,0.4); color: var(--cream); }
+  .trust-badge .btn-ghost:hover { border-color: var(--cream); background: rgba(244,241,234,0.08); }
+
+  /* §06 CTA */
+  .cta-band { background: var(--green); color: var(--cream); padding: 130px 36px; }
+  .cta-band .inner { max-width: 1320px; margin: 0 auto; }
+  .cta-band h2 { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(48px, 6vw, 96px); line-height: 1.04; letter-spacing: -2px; margin: 0 0 24px; text-wrap: pretty; max-width: 1000px; }
+  .cta-band h2 em { font-style: italic; color: var(--terra); }
+  .cta-band p.lede { font-size: 17px; line-height: 1.6; color: rgba(244,241,234,0.75); margin: 0 0 48px; max-width: 560px; }
+  .cta-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(244,241,234,0.15); border: 0.5px solid rgba(244,241,234,0.15); }
+  @media (max-width: 820px) { .cta-pair { grid-template-columns: 1fr; } }
+  .cta-card { background: var(--green); padding: 32px 30px; display: flex; flex-direction: column; gap: 14px; min-height: 220px; }
+  .cta-card .k { font-size: 10px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--terra); font-weight: 600; }
+  .cta-card .t { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 30px; color: var(--cream); letter-spacing: -0.5px; line-height: 1.15; padding-bottom: 2px; }
+  .cta-card .v { font-size: 14px; line-height: 1.55; color: rgba(244,241,234,0.75); flex: 1; }
+  .cta-card .go {
+    align-self: flex-start;
+    padding: 12px 20px; border-radius: 999px;
+    background: var(--cream); color: var(--ink);
+    font-size: 13px; font-weight: 500; border: none;
+    cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .cta-card .go:hover { background: #fff; }
+  .cta-card.alt .go { background: transparent; color: var(--cream); border: 0.5px solid rgba(244,241,234,0.4); }
+  .cta-card.alt .go:hover { background: rgba(244,241,234,0.1); }
+
+  /* FOOTER */
+  footer.site { background: var(--ink); color: rgba(244,241,234,0.7); padding: 70px 36px 40px; }
+  footer .inner { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 50px; }
+  @media (max-width: 820px) { footer .inner { grid-template-columns: 1fr 1fr; gap: 32px; } }
+  footer h5 { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(244,241,234,0.5); margin: 0 0 16px; font-weight: 600; }
+  footer ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+  footer ul a { color: var(--cream); opacity: 0.85; }
+  footer ul a:hover { color: var(--terra); opacity: 1; }
+  footer .brand-block .logo { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 34px; color: var(--cream); margin-bottom: 14px; display: inline-flex; align-items: center; gap: 4px; line-height: 1; }
+  footer .brand-block .logo .lens-svg { width: 26px; height: 26px; display: block; flex: 0 0 auto; transform: translateY(-2px); }
+  footer .brand-block p { font-size: 13px; line-height: 1.55; max-width: 340px; margin: 0 0 20px; }
+  footer .legal { max-width: 1320px; margin: 60px auto 0; padding-top: 24px; border-top: 0.5px solid rgba(244,241,234,0.15); display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 1px; color: rgba(244,241,234,0.5); }
+
+  /* TWEAKS */
+  .tweaks { position: fixed; right: 20px; bottom: 20px; z-index: 200; width: 280px; background: var(--cream); color: var(--ink); border-radius: 20px; padding: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.35); font-family: 'Inter', system-ui; display: none; border: 0.5px solid var(--line); }
+  .tweaks.open { display: block; }
+  .tweaks h4 { margin: 0 0 14px; font-size: 11px; letter-spacing: 2.2px; text-transform: uppercase; font-weight: 600; color: var(--green); }
+  .tweaks label { display: block; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; font-weight: 600; color: var(--muted); margin: 14px 0 8px; }
+  .tweaks .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tweaks button.opt { flex: 1; padding: 9px 10px; border-radius: 10px; border: 0.5px solid var(--line); background: transparent; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink); cursor: pointer; transition: all 0.15s; min-width: 60px; }
+  .tweaks button.opt.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+  .tweaks button.opt:hover:not(.active) { background: rgba(21,33,26,0.05); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site">
+  <div class="nav">
+    <a href="#" class="brand">aller<svg class="lens-svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--terra)" stroke-width="1.5"/><circle cx="10" cy="10" r="3.5" fill="var(--terra)"/></svg>sight</a>
+    <ul>
+      <li><a href="#kitchens">For kitchens</a></li>
+      <li><a href="#proof">Protocol log</a></li>
+      <li><a href="#diners">For customers</a></li>
+      <li><a href="#trusted">Trusted by</a></li>
+    </ul>
+    <div class="ctas">
+      <a href="#diners" class="btn btn-ghost">Get the app</a>
+      <a href="#cta" class="btn btn-primary">Book a kitchen pilot</a>
+    </div>
+  </div>
+</header>
+
+<!-- §01 HERO -->
+<section class="hero">
+  <div class="eyebrow-row">
+    <span class="e-left">Introducing AllerSight · Est. 2026</span>
+    <span class="mono">No. 01 / 06</span>
+  </div>
+
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <h1>
+        Safe food,<br/>
+        <em>proven</em> — from the<br/>
+        <span class="swipe">kitchen</span> to the table.
+      </h1>
+      <p class="lede">
+        AllerSight is a real-time allergen safety system, and it works on
+        two sides of the plate. <b>In the kitchen</b>, smart glasses on the
+        line track every ingredient, every hand, every tool and surface —
+        holding contamination in memory until a wash resets it. For owners,
+        insurers and inspectors, a signed log proves what landed on the
+        plate. <b>In the customer's hand</b>, it's a phone: tell the waiter
+        the allergy in-store and get an answer from the kitchen's live
+        system, or photograph the meal yourself, pick a friend, and know
+        who can eat it.
+      </p>
+      <div class="hero-ctas">
+        <a href="#cta" class="btn btn-primary">Book a kitchen pilot →</a>
+        <a href="#diners" class="btn btn-ghost">Download for customers</a>
+      </div>
+      <div class="hero-trust">
+        <span>248 kitchens live</span>
+        <span>SOC 2 Type II</span>
+        <span>FDA-referenced audit trail</span>
+      </div>
+    </div>
+
+    <div class="phone-stage">
+      <div class="phone-shadow"></div>
+      <div id="hero-phone"></div>
+    </div>
+  </div>
+
+  <!-- live ticker -->
+  <div class="ticker" aria-hidden="true" style="margin-top: 80px;">
+    <div class="track">
+      <span class="item"><span class="d"></span>12:01 · <em>peanut detected</em> · Osteria Bianca</span>
+      <span class="item"><span class="d g"></span>12:05 · <em>knife washed</em> · contamination cleared</span>
+      <span class="item"><span class="d"></span>07:42 · <em>trace sesame</em> · on chef's tongs</span>
+      <span class="item"><span class="d g"></span>19:18 · <em>table 14 served</em> · profile clean</span>
+      <span class="item"><span class="d"></span>11:26 · <em>egg yolk</em> on prep board</span>
+      <span class="item"><span class="d g"></span>14:03 · <em>scan → safe for Priya</em></span>
+      <span class="item"><span class="d"></span>09:51 · <em>shellfish stock</em> · pan 03</span>
+      <span class="item"><span class="d g"></span>20:44 · <em>Q2 audit exported</em> · signed</span>
+      <span class="item"><span class="d"></span>12:01 · <em>peanut detected</em> · Osteria Bianca</span>
+      <span class="item"><span class="d g"></span>12:05 · <em>knife washed</em> · contamination cleared</span>
+      <span class="item"><span class="d"></span>07:42 · <em>trace sesame</em> · on chef's tongs</span>
+      <span class="item"><span class="d g"></span>19:18 · <em>table 14 served</em> · profile clean</span>
+      <span class="item"><span class="d"></span>11:26 · <em>egg yolk</em> on prep board</span>
+      <span class="item"><span class="d g"></span>14:03 · <em>scan → safe for Priya</em></span>
+      <span class="item"><span class="d"></span>09:51 · <em>shellfish stock</em> · pan 03</span>
+      <span class="item"><span class="d g"></span>20:44 · <em>Q2 audit exported</em> · signed</span>
+    </div>
+  </div>
+</section>
+
+<!-- §02 WEARABLE VISION (business) -->
+<section class="band dark" id="kitchens">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">02</span> &nbsp;· For kitchens</span>
+      <span>Wearable vision, on the line</span>
+    </div>
+    <h2>Wearable vision that<br/>sees the risk <em>before</em><br/>it plates.</h2>
+
+    <div class="wearable-grid">
+      <div class="wearable-copy">
+        <p class="lede">
+          Every chef on the line wears a pair of lightweight glasses. As
+          ingredients pass under their hands, AllerSight names each one —
+          <b>peanut, sesame, shellfish, egg</b> — and attaches that state
+          to the hand holding it, the knife cutting it, the board beneath
+          it. The moment risk is visible, it's tracked.
+        </p>
+        <div class="feat">
+          <div class="item"><div class="k">Ingredient detection</div><div class="v">Recognizes 240+ declared allergens and aliases in situ — raw, plated or mid-prep.</div></div>
+          <div class="item"><div class="k">Hands, knives, surfaces</div><div class="v">Contamination state follows the object, not the station. Pick up a knife, it carries what it touched.</div></div>
+          <div class="item"><div class="k">Reset on wash</div><div class="v">Hand-wash and tool-rinse are detected visually. The chain breaks the instant the water runs.</div></div>
+          <div class="item"><div class="k">Pre-plate alerts</div><div class="v">A soft chime in the glasses, seconds before a contaminated tool meets an allergy-sensitive order.</div></div>
+        </div>
+      </div>
+
+      <div class="pov-scene">
+        <img class="pov-photo" alt="Chef plating a high-end dish"
+             src="https://images.unsplash.com/photo-1600891964092-4316c288032e?auto=format&fit=crop&w=1200&q=80"
+             onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80';"/>
+        <div class="pov-vignette"></div>
+        <div class="pov-scanlines"></div>
+        <div class="pov-hud">
+          <div class="top">
+            <span class="live">Chef G. Ramos · Wearable 02</span>
+            <span class="right"><span>STATION 02</span><span>12:06:41</span></span>
+          </div>
+          <div class="bracket tl"></div>
+          <div class="bracket tr"></div>
+          <div class="bracket bl"></div>
+          <div class="bracket br"></div>
+
+          <!-- annotations pointing into the plate -->
+          <div class="anno warn" style="top: 42%; left: 14%;">
+            <div class="pt"></div>
+            <div class="line"></div>
+            <div class="card">
+              <span class="k">Peanut · satay glaze</span>
+              severe · unsafe · trace 0.4g
+            </div>
+          </div>
+          <div class="anno warn right" style="top: 12%; right: 14%;">
+            <div class="pt" style="align-self: flex-end;"></div>
+            <div class="line" style="align-self: flex-end;"></div>
+            <div class="card">
+              <span class="k">Knife · 8" chef's</span>
+              contaminated · last: peanut
+            </div>
+          </div>
+          <div class="anno safe right" style="bottom: 34%; right: 12%;">
+            <div class="pt" style="align-self: flex-end;"></div>
+            <div class="line" style="align-self: flex-end;"></div>
+            <div class="card">
+              <span class="k">Hands · washed 12:04</span>
+              clean · 14 sec
+            </div>
+          </div>
+        </div>
+        <div class="pov-verdict">
+          <div class="chip">⚠ Cross-contact</div>
+          <div class="line">Knife carries <em>peanut</em> — do not touch plate for table 14.</div>
+          <div class="meta">conf.<br/>0.98</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- §03 CONTAMINATION MEMORY + PROTOCOL LOG -->
+<section class="band" id="proof" style="background: var(--cream);">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">03</span> &nbsp;· Contamination memory &amp; proof</span>
+      <span>Remembered until washed · signed for court</span>
+    </div>
+    <h2>What a peanut touches,<br/>AllerSight <em>remembers.</em></h2>
+
+    <div class="memory-grid">
+      <div class="memory-copy">
+        <p class="lede">
+          The glasses keep a running memory of every contaminated hand,
+          knife and surface. <b>Wash a knife, the chain breaks. Rinse your
+          hands, the chain breaks.</b> Until then, the knife is still
+          "peanut." The glove is still "shellfish." And every plate that
+          touches them inherits the risk — prevented before it leaves
+          the pass.
+        </p>
+
+        <!-- minimal chain visualization -->
+        <div class="memory-track">
+          <div class="row">
+            <div class="kt">12:01:04</div>
+            <div class="body"><b>Peanut</b> detected — satay prep, Station 02</div>
+          </div>
+          <div class="row">
+            <div class="kt">12:02:18</div>
+            <div class="body">Chef's <b>knife</b> picked up · now carries peanut</div>
+          </div>
+          <div class="row">
+            <div class="kt">12:03:41</div>
+            <div class="body"><b>Board A</b> + right hand enter peanut state</div>
+          </div>
+          <div class="row cleared">
+            <div class="kt">12:05:09</div>
+            <div class="body"><b>Knife washed</b> · hands washed · state cleared</div>
+          </div>
+          <div class="row cleared">
+            <div class="kt">12:06:33</div>
+            <div class="body">Safe prep resumed · branzino, no allergens in chain</div>
+          </div>
+        </div>
+
+        <div class="memory-cta">
+          <span>A <b>protocol log a lawyer would envy.</b> Every detection, every wash, every plate sent out — recorded to a signed, tamper-evident ledger.</span>
+          <span>Export a single PDF for a health inspection. Replay <b>any minute of any day</b> for an insurance claim. Prove a negative, in court, with timestamps.</span>
+        </div>
+      </div>
+
+      <!-- Protocol log panel -->
+      <div class="log-panel">
+        <div class="log-head">
+          <div>
+            <div class="t">Protocol log · Station 02</div>
+            <div class="station">Osteria Bianca · dinner svc.</div>
+          </div>
+          <div class="meta">
+            <span class="dot"></span>signed · Apr 18<br/>
+            <span style="opacity:0.7;">14 events · 00:12:36</span>
+          </div>
+        </div>
+        <div class="log-body">
+          <div class="log-row warn">
+            <span class="time">12:01:04</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Peanut</b> detected · satay glaze, 0.4g prep</span>
+            <span class="tag">Detect</span>
+          </div>
+          <div class="log-row warn">
+            <span class="time">12:02:18</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Chef's knife</b> picked up · now carries peanut</span>
+            <span class="tag">Trace</span>
+          </div>
+          <div class="log-row action">
+            <span class="time">12:03:41</span>
+            <span class="marker"></span>
+            <span class="msg">Chef moved to station 03 · <b>Board A</b> flagged</span>
+            <span class="tag">Move</span>
+          </div>
+          <div class="log-row clean">
+            <span class="time">12:05:09</span>
+            <span class="marker"></span>
+            <span class="msg"><b>Knife washed</b> at sink 01 · state cleared</span>
+            <span class="tag">Reset</span>
+          </div>
+          <div class="log-row clean">
+            <span class="time">12:05:52</span>
+            <span class="marker"></span>
+            <span class="msg">Chef's <b>hands washed</b> · 14 sec · state cleared</span>
+            <span class="tag">Reset</span>
+          </div>
+          <div class="log-row safe">
+            <span class="time">12:06:33</span>
+            <span class="marker"></span>
+            <span class="msg">Safe prep resumed · branzino · <b>no allergens in chain</b></span>
+            <span class="tag">Cleared</span>
+          </div>
+          <div class="log-row">
+            <span class="time">12:08:11</span>
+            <span class="marker"></span>
+            <span class="msg">Plate for table 14 · profile: <b>Marcus · peanut severe</b></span>
+            <span class="tag">Plate</span>
+          </div>
+          <div class="log-row safe">
+            <span class="time">12:08:14</span>
+            <span class="marker"></span>
+            <span class="msg">Verdict: <b>safe to serve</b> · signed · hash 0x8f…a3</span>
+            <span class="tag">Sign</span>
+          </div>
+        </div>
+        <div class="log-foot">
+          <span>Block height 184,221</span>
+          <span class="stamp">⬢ chain intact</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- §04 CONSUMER -->
+<section class="band" id="diners" style="background: var(--cream-2);">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">04</span> &nbsp;· For customers</span>
+      <span>One photo · whole table</span>
+    </div>
+    <h2>Snap a photo.<br/><em>Know</em> who can eat it.</h2>
+
+    <div class="consumer-grid">
+      <div class="consumer-copy">
+        <p class="lede">
+          You're at a hangout, a dinner, a takeout night. Point your phone at
+          the food, tap the friends in the room, and <b>know in under two seconds
+          who can safely eat it.</b> No menus to read aloud, no server to flag
+          down, no pretending the allergy isn't that bad.
+        </p>
+        <div class="friend-steps">
+          <div class="step">
+            <div class="n">Photograph</div>
+            <div>
+              <div class="title">Snap the dish.</div>
+              <div class="body">A plate, a pan, a to-go container. Works on menus and packaging too.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Pick friends</div>
+            <div>
+              <div class="title">Tag who's eating.</div>
+              <div class="body">Friends join AllerSight once and set their allergens and safe foods. Their data stays on their phone — you only see names and avatars.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Verdict</div>
+            <div>
+              <div class="title">See who's safe, instantly.</div>
+              <div class="body">Severe allergens in terracotta. Safe in green. Everyone at the table knows, in the same second.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="n">Profile</div>
+            <div>
+              <div class="title">Tap a friend to see more.</div>
+              <div class="body">Open any friend's profile for the full list of what they can and can't eat — before you order, or before you offer a bite.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="consumer-phone-stage">
+        <div class="drop"></div>
+        <div id="consumer-phone"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- §05 TRUSTED -->
+<section class="band" id="trusted" style="background: var(--cream);">
+  <div class="inner">
+    <div class="section-eyebrow">
+      <span><span class="num">05</span> &nbsp;· Trusted by AllerSight</span>
+      <span>Verified by AllerSight · real-time allergen tracking</span>
+    </div>
+    <div class="trusted-head">
+      <h2>Kitchens <em>verified</em> by<br/>AllerSight.</h2>
+      <p class="lede">
+        Every listed kitchen runs AllerSight on their line — real-time
+        allergen tracking across ingredients, hands, tools and surfaces.
+        We verify each one ourselves, to standards we set and publish, on
+        data from their own kitchen. The mark means what it says.
+      </p>
+    </div>
+
+    <div class="trusted-grid">
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">Osteria Bianca</div>
+        <div class="biz-meta">Italian · tasting menu · SoHo, New York</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">18,402</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>420</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">Mei &amp; Son</div>
+        <div class="biz-meta">Cantonese · dim sum · Mission, SF</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">11,820</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>260</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">Fleur &amp; Flint</div>
+        <div class="biz-meta">Brasserie · bistro fare · Marylebone, London</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">31,208</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>510</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">Tanaka / omakase</div>
+        <div class="biz-meta">Edo-mae sushi · 8 seats · Shibuya, Tokyo</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">4,214</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>80</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">Casa Rivière</div>
+        <div class="biz-meta">French · two-star · Le Marais, Paris</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">26,901</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>340</em></div></div>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="verified">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#1f3d2b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verified by AllerSight
+        </div>
+        <div class="biz-name">North Pier Hotel</div>
+        <div class="biz-meta">Group catering · 600 covers/day · Copenhagen</div>
+        <div class="biz-stats">
+          <div><div class="s">Safe plates</div><div class="v">98,330</div></div>
+          <div><div class="s">Plates/day</div><div class="v"><em>1,240</em></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-badge">
+      <div class="mark"><div class="ring"></div></div>
+      <div class="m">
+        The <em>AllerSight mark</em> means verified.
+        <span class="sub">Every kitchen with the mark is running AllerSight on their line and has been verified by our team — against standards we set, audit and publish. No stickers, no paperwork in a drawer.</span>
+      </div>
+      <a href="#cta" class="btn btn-ghost">See how verification works →</a>
+    </div>
+  </div>
+</section>
+
+<!-- §06 CTA -->
+<section class="cta-band" id="cta">
+  <div class="inner">
+    <h2>Two products.<br/>One <em>safer</em> bite.</h2>
+    <p class="lede">Whether you run the kitchen or you're trying to feed a friend without a scare — AllerSight is built for the side of the table you're on.</p>
+    <div class="cta-pair">
+      <div class="cta-card">
+        <div class="k">For restaurants · pilot in 30 days</div>
+        <div class="t">Put the glasses on your line.</div>
+        <div class="v">Hardware, install and training included. First 90 days audit-ready or your money back.</div>
+        <button class="go">Book a kitchen pilot →</button>
+      </div>
+      <div class="cta-card alt">
+        <div class="k">For customers · free, forever</div>
+        <div class="t">The app that reads the plate for your friends.</div>
+        <div class="v">iOS and Android. No ads, no upsells. Your circle's allergen data stays on-device.</div>
+        <button class="go">Download AllerSight →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site">
+  <div class="inner">
+    <div class="brand-block">
+      <div class="logo">aller<svg class="lens-svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="var(--terra)" stroke-width="1.5"/><circle cx="10" cy="10" r="3.5" fill="var(--terra)"/></svg>sight</div>
+      <p>A real-time allergen safety system that tracks contamination, proves compliance, and connects safe kitchens to the people eating at them.</p>
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(244,241,234,0.5);">Est. 2026 · Minneapolis, MN</div>
+    </div>
+    <div><h5>For kitchens</h5><ul><li><a href="#">Kitchen pilot</a></li><li><a href="#">Protocol log</a></li><li><a href="#">Compliance</a></li><li><a href="#">Hardware</a></li></ul></div>
+    <div><h5>For customers</h5><ul><li><a href="#">Get the app</a></li><li><a href="#">Trusted kitchens</a></li><li><a href="#">Friend circles</a></li><li><a href="#">Privacy</a></li></ul></div>
+    <div><h5>Company</h5><ul><li><a href="#">Manifesto</a></li><li><a href="#">Science</a></li><li><a href="#">Press</a></li><li><a href="#">Careers</a></li></ul></div>
+  </div>
+  <div class="legal">
+    <span>© 2026 AllerSight, Inc.</span>
+    <span>SOC 2 · HIPAA-aligned · FDA-referenced audit trail</span>
+  </div>
+</footer>
+
+<!-- TWEAKS -->
+<div class="tweaks" id="tweaks">
+  <h4>Tweaks</h4>
+  <label>Accent</label>
+  <div class="row" data-group="accent">
+    <button class="opt" data-val="#d97757">Terra</button>
+    <button class="opt" data-val="#b85a3a">Rust</button>
+    <button class="opt" data-val="#c2923a">Ochre</button>
+  </div>
+  <label>Hero emphasis</label>
+  <div class="row" data-group="emphasis">
+    <button class="opt" data-val="proven">Proven</button>
+    <button class="opt" data-val="traced">Traced</button>
+    <button class="opt" data-val="witnessed">Witnessed</button>
+  </div>
+  <label>Hero phone</label>
+  <div class="row" data-group="phone">
+    <button class="opt" data-val="consumer">Diner</button>
+    <button class="opt" data-val="kitchen">Kitchen</button>
+  </div>
+</div>
+
+<!-- REACT — phone mocks -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="components/ios-frame.jsx" type="text/babel"></script>
+<script type="text/babel">
+  const CREAM = '#f4f1ea';
+  const INK = '#15211a';
+  const GREEN = '#1f3d2b';
+  const TERRA = '#d97757';
+  const SAFE = '#6e9a5e';
+  const MUTED = 'rgba(21,33,26,0.55)';
+
+  /* Realistic food hero image — stacked gradients read as plated dish on dark table */
+  const heroFoodBg = {
+    backgroundImage: `
+      radial-gradient(ellipse 7% 5% at 52% 52%, #d65432 0%, #7a2818 55%, transparent 85%),
+      radial-gradient(ellipse 9% 6% at 42% 66%, #a8c67a 0%, #5a7a3a 55%, transparent 85%),
+      radial-gradient(ellipse 14% 10% at 58% 66%, #e8b886 0%, #b07840 60%, transparent 85%),
+      radial-gradient(ellipse 22% 14% at 48% 58%, #f2c48a 0%, #c88a4a 45%, #7a4820 75%, transparent 90%),
+      radial-gradient(ellipse 42% 40% at 50% 62%, #ece5d5 0%, #d4cbba 40%, #8e8577 70%, #2e2a20 95%, transparent 100%),
+      radial-gradient(ellipse 80% 30% at 50% 0%, rgba(240,220,180,0.25), transparent 65%),
+      linear-gradient(180deg, #3a2a1c 0%, #1e1408 40%, #0c0804 100%)
+    `,
+  };
+
+  /* Food scene used inside the phone mock — real photo */
+  const FoodScene = () => (
+    <div style={{ position: 'absolute', inset: 0, background: '#0c0804', overflow: 'hidden' }}>
+      <img
+        alt="Pad thai"
+        src="https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=900&q=80"
+        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1626804475297-41608ea09aeb?auto=format&fit=crop&w=900&q=80'; }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+      {/* subtle darkening so white HUD text stays readable */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.05) 55%, rgba(0,0,0,0.55) 100%)', pointerEvents: 'none' }}/>
+    </div>
+  );
+
+  function FriendRow({ name, status, detail, tone, avatar }) {
+    const colors = {
+      safe: { bg: 'rgba(110,154,94,0.14)', fg: '#4b7a3f', border: 'rgba(110,154,94,0.35)' },
+      danger: { bg: 'rgba(217,119,87,0.14)', fg: '#a1452a', border: 'rgba(217,119,87,0.45)' },
+      caution: { bg: 'rgba(217,163,78,0.15)', fg: '#8a6418', border: 'rgba(217,163,78,0.4)' },
+    }[tone];
+    return (
+      <div style={{
+        display: 'grid', gridTemplateColumns: '34px 1fr auto', gap: 12,
+        alignItems: 'center', padding: '11px 0',
+        borderBottom: '0.5px solid rgba(21,33,26,0.1)',
+      }}>
+        <div style={{ width: 34, height: 34, borderRadius: '50%', background: avatar, border: '0.5px solid rgba(21,33,26,0.12)' }}/>
+        <div>
+          <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 19, color: INK, lineHeight: 1.1, letterSpacing: -0.3 }}>{name}</div>
+          <div style={{ fontFamily: '"Inter", system-ui', fontSize: 11, color: MUTED, marginTop: 3, lineHeight: 1.3 }}>{detail}</div>
+        </div>
+        <div style={{
+          fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase',
+          color: colors.fg, fontWeight: 700, padding: '5px 9px',
+          background: colors.bg, borderRadius: 5, border: `0.5px solid ${colors.border}`,
+          whiteSpace: 'nowrap',
+        }}>{status}</div>
+      </div>
+    );
+  }
+
+  // ──────── Idle (splash / camera ready) ────────
+  function IdleScreen({ onStart }) {
+    return (
+      <div style={{ height: '100%', width: '100%', background: CREAM, color: INK, padding: '88px 26px 36px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+        {/* brand */}
+        <div style={{ display: 'inline-flex', alignItems: 'baseline', fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 30, color: INK, letterSpacing: -0.4, marginBottom: 18 }}>
+          <span>aller</span>
+          <span style={{ display: 'inline-block', width: 22, height: 22, borderRadius: '50%', border: `1.5px solid ${TERRA}`, marginLeft: 2, position: 'relative', top: -1 }}>
+            <span style={{ position: 'absolute', width: 5, height: 5, borderRadius: '50%', background: TERRA, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}/>
+          </span>
+          <span>sight</span>
+        </div>
+
+        {/* editorial headline */}
+        <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: 38, lineHeight: 1.02, letterSpacing: -1, color: INK, textWrap: 'pretty', marginTop: 6 }}>
+          <span>Know </span>
+          <span style={{ fontStyle: 'italic', color: GREEN }}>exactly </span>
+          <span>who can </span>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <span style={{ fontStyle: 'italic' }}>eat it.</span>
+            <span style={{ position: 'absolute', left: 0, right: 0, bottom: 4, height: 3, background: TERRA, opacity: 0.85, zIndex: -1 }}/>
+          </span>
+        </div>
+
+        <div style={{ fontFamily: '"Inter", system-ui', fontSize: 12.5, color: MUTED, marginTop: 16, lineHeight: 1.5, maxWidth: 290 }}>
+          Point the camera at the dish. We'll read the ingredients and cross-check every friend at the table.
+        </div>
+
+        {/* scan button */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+          <button onClick={onStart} style={{ appearance: 'none', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 160, height: 160, borderRadius: '50%', border: `1.5px solid ${GREEN}`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: `1px solid ${TERRA}`, opacity: 0.4, animation: 'alPulse 2.2s ease-out infinite' }}/>
+              <div style={{ position: 'absolute', inset: -22, borderRadius: '50%', border: `1px solid ${TERRA}`, opacity: 0.2, animation: 'alPulse 2.2s ease-out infinite', animationDelay: '0.7s' }}/>
+              <div style={{ width: 54, height: 54, borderRadius: '50%', background: TERRA, display: 'flex', alignItems: 'center', justifyContent: 'center', color: CREAM, fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 24, boxShadow: '0 10px 30px rgba(217,119,87,0.4)' }}>scan</div>
+              {[0, 90, 180, 270].map(deg => (
+                <div key={deg} style={{ position: 'absolute', top: '50%', left: '50%', width: 12, height: 1, background: GREEN, transform: `rotate(${deg}deg) translate(76px, 0)`, transformOrigin: '0 0' }}/>
+              ))}
+            </div>
+            <div style={{ fontFamily: '"Inter", system-ui', fontSize: 10.5, letterSpacing: 2.2, textTransform: 'uppercase', color: GREEN, fontWeight: 600 }}>Tap to scan</div>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontFamily: '"Inter", system-ui', fontSize: 9.5, letterSpacing: 1.5, textTransform: 'uppercase', color: MUTED, fontWeight: 500, marginTop: 6 }}>
+          <div><div>3 friends</div><div>at the table</div></div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 17, letterSpacing: 0, textTransform: 'none', color: INK, marginBottom: 2 }}>est. 2026</div>
+            <div>One photo,</div><div>whole table</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ──────── Scanning (animated progress over food photo) ────────
+  function ScanningScreen({ onComplete }) {
+    const [progress, setProgress] = React.useState(0);
+    const [status, setStatus] = React.useState('Framing subject');
+    React.useEffect(() => {
+      const steps = [
+        { at: 0, text: 'Framing subject' },
+        { at: 22, text: 'Reading the plate' },
+        { at: 50, text: 'Cross-checking ingredients' },
+        { at: 78, text: 'Matching 3 friend profiles' },
+      ];
+      let raf;
+      const t0 = performance.now();
+      const DUR = 3000;
+      const tick = (t) => {
+        const p = Math.min(100, ((t - t0) / DUR) * 100);
+        setProgress(p);
+        const s = [...steps].reverse().find(s => p >= s.at);
+        if (s) setStatus(s.text);
+        if (p < 100) raf = requestAnimationFrame(tick);
+        else setTimeout(onComplete, 380);
+      };
+      raf = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(raf);
+    }, []);
+
+    return (
+      <div style={{ height: '100%', width: '100%', background: INK, color: CREAM, position: 'relative', overflow: 'hidden' }}>
+        {/* warm radial-gradient placeholder (matches v1 scan look — no photo) */}
+        <div style={{ position: 'absolute', inset: 0, background: `
+          radial-gradient(circle at 30% 45%, #c68750 0%, #8a5a33 40%, transparent 70%),
+          radial-gradient(circle at 65% 55%, #d9a066 0%, #a6714a 35%, transparent 65%),
+          radial-gradient(circle at 50% 50%, #3a2a1e 0%, #1a1410 100%)
+        ` }}/>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.15, mixBlendMode: 'overlay', background: 'repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,0.1) 0deg 2deg, transparent 2deg 4deg)' }}/>
+        {/* corner brackets */}
+        <div style={{ position: 'absolute', top: 108, left: 34, right: 34, bottom: 220, pointerEvents: 'none' }}>
+          {[['tl',0,0,true,true],['tr',0,'auto',true,false],['bl','auto',0,false,true],['br','auto','auto',false,false]].map(([k,top,left,isTop,isLeft]) => (
+            <div key={k} style={{
+              position: 'absolute',
+              top: top === 'auto' ? 'auto' : top, left: left === 'auto' ? 'auto' : left,
+              bottom: top === 'auto' ? 0 : 'auto', right: left === 'auto' ? 0 : 'auto',
+              width: 26, height: 26,
+              borderTop: isTop ? `1.5px solid ${CREAM}` : 'none',
+              borderBottom: !isTop ? `1.5px solid ${CREAM}` : 'none',
+              borderLeft: isLeft ? `1.5px solid ${CREAM}` : 'none',
+              borderRight: !isLeft ? `1.5px solid ${CREAM}` : 'none',
+            }}/>
+          ))}
+          <div style={{ position: 'absolute', left: 0, right: 0, top: `${progress}%`, height: 2, background: `linear-gradient(90deg, transparent, ${TERRA}, transparent)`, boxShadow: `0 0 12px ${TERRA}` }}/>
+        </div>
+        <div style={{ position: 'absolute', top: 68, left: 0, right: 0, padding: '0 26px', fontFamily: '"Inter", system-ui', fontSize: 10, letterSpacing: 2.2, textTransform: 'uppercase', color: CREAM, fontWeight: 500, display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
+          <span>● Live scan</span>
+          <span>{Math.floor(progress)}%</span>
+        </div>
+        <div style={{ position: 'absolute', bottom: 60, left: 18, right: 18, background: 'rgba(20,28,22,0.82)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '0.5px solid rgba(244,241,234,0.15)', borderRadius: 20, padding: '16px 20px' }}>
+          <div style={{ fontFamily: '"Inter", system-ui', fontSize: 10, letterSpacing: 2.2, textTransform: 'uppercase', color: TERRA, fontWeight: 600, marginBottom: 6 }}>Investigating</div>
+          <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 24, color: CREAM, lineHeight: 1, marginBottom: 12, letterSpacing: -0.3 }}>{status}…</div>
+          <div style={{ height: 2, background: 'rgba(244,241,234,0.15)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${progress}%`, background: TERRA, transition: 'width 80ms linear' }}/>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Friend pill — horizontal scroller chip
+  function FriendPill({ name, tone, selected, avatar, onClick }) {
+    const border = selected
+      ? (tone === 'danger' ? TERRA : tone === 'caution' ? '#b8943b' : GREEN)
+      : 'rgba(21,33,26,0.2)';
+    const bg = selected
+      ? (tone === 'danger' ? 'rgba(217,119,87,0.14)' : tone === 'caution' ? 'rgba(217,163,78,0.14)' : 'rgba(110,154,94,0.14)')
+      : CREAM;
+    const dot = tone === 'danger' ? TERRA : tone === 'caution' ? '#b8943b' : SAFE;
+    return (
+      <button onClick={onClick} style={{
+        flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 8,
+        padding: '6px 12px 6px 6px', borderRadius: 999,
+        border: `${selected ? 1.2 : 0.5}px solid ${border}`,
+        background: bg, cursor: 'pointer', position: 'relative',
+      }}>
+        <span style={{ width: 26, height: 26, borderRadius: '50%', background: avatar, border: '0.5px solid rgba(21,33,26,0.12)', position: 'relative' }}>
+          <span style={{ position: 'absolute', right: -1, bottom: -1, width: 9, height: 9, borderRadius: '50%', background: dot, border: `1.5px solid ${CREAM}` }}/>
+        </span>
+        <span style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 15, color: INK, letterSpacing: -0.2, lineHeight: 1 }}>{name}</span>
+      </button>
+    );
+  }
+
+  // ──────── Results (friend-table verdict) ────────
+  function ResultsScreen({ onRestart }) {
+    const friends = [
+      { name: 'Priya',  tone: 'safe',    avatar: 'radial-gradient(circle at 40% 35%, #e9c59a 0%, #b88858 50%, #6a3e1e 100%)' },
+      { name: 'Marcus', tone: 'danger',  avatar: 'radial-gradient(circle at 40% 35%, #d4a578 0%, #8a5432 50%, #4a2818 100%)' },
+      { name: 'June',   tone: 'safe',    avatar: 'radial-gradient(circle at 40% 35%, #f0d4b0 0%, #a8764a 50%, #5a3a20 100%)' },
+      { name: 'Theo',   tone: 'caution', avatar: 'radial-gradient(circle at 40% 35%, #c99a6a 0%, #7a4e28 50%, #3a2010 100%)' },
+      { name: 'Anya',   tone: 'safe',    avatar: 'radial-gradient(circle at 40% 35%, #ead0a8 0%, #a87044 50%, #5a3218 100%)' },
+    ];
+    const [selected, setSelected] = React.useState('Marcus');
+    const sel = friends.find(f => f.name === selected);
+    const details = {
+      Priya:  { status: 'Safe',   detail: 'no allergens in this dish' },
+      Marcus: { status: 'Do not', detail: 'peanut · severe — trace oil in wok' },
+      June:   { status: 'Safe',   detail: 'gluten — noodles are rice · confirmed' },
+      Theo:   { status: 'Check',  detail: 'shellfish — fish-sauce base flagged' },
+      Anya:   { status: 'Safe',   detail: 'profile clear against this dish' },
+    };
+    return (
+      <div style={{ height: '100%', width: '100%', background: CREAM, color: INK, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        {/* hero food photo with HUD pin */}
+        <div style={{ marginTop: 58, height: 200, position: 'relative', overflow: 'hidden' }}>
+          <FoodScene/>
+          <div style={{ position: 'absolute', top: 40, left: '52%', display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none' }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.4px solid #fff', background: 'rgba(217,119,87,0.75)', boxShadow: '0 0 0 2px rgba(217,119,87,0.22), 0 0 14px rgba(217,119,87,0.55)' }}/>
+            <div style={{ width: 1, height: 14, background: 'rgba(244,241,234,0.45)', marginLeft: 4 }}/>
+            <div style={{ background: 'rgba(10,16,13,0.85)', backdropFilter: 'blur(10px)', border: '0.5px solid rgba(217,119,87,0.5)', borderRadius: 8, padding: '5px 9px', fontFamily: 'JetBrains Mono, monospace', fontSize: 8.5, letterSpacing: 1.2, textTransform: 'uppercase', color: '#f0b89a', fontWeight: 600, whiteSpace: 'nowrap' }}>Peanut · detected</div>
+          </div>
+          <div style={{ position: 'absolute', bottom: 12, left: 14, right: 14, background: 'rgba(14,22,17,0.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', border: '0.5px solid rgba(244,241,234,0.18)', borderRadius: 12, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontFamily:'"Inter", system-ui', fontSize: 9, letterSpacing: 1.6, textTransform: 'uppercase', color:'rgba(244,241,234,0.55)', fontWeight: 600 }}>Identified</div>
+              <div style={{ fontFamily:'"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 20, color: CREAM, letterSpacing: -0.3, lineHeight: 1.1, marginTop: 3, whiteSpace: 'nowrap' }}>Pad thai</div>
+            </div>
+            <div style={{ padding: '5px 10px', borderRadius: 999, background: 'rgba(110,154,94,0.2)', border: '0.5px solid rgba(110,154,94,0.45)', color: '#9dc08e', fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 600 }}>3 / 5 safe</div>
+          </div>
+        </div>
+
+        <div style={{ padding: '18px 20px 2px' }}>
+          <div style={{ fontFamily:'"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 26, color: INK, letterSpacing: -0.6, lineHeight: 1.15 }}>
+            Who can <span style={{color:TERRA}}>eat this?</span>
+          </div>
+          <div style={{ fontFamily: 'Inter, system-ui', fontSize: 11, color: MUTED, marginTop: 4 }}>
+            Tap a friend to see their verdict
+          </div>
+        </div>
+
+        {/* horizontal friend selector */}
+        <div style={{
+          marginTop: 12, padding: '0 20px',
+          display: 'flex', gap: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+        }}>
+          <style>{`.no-sb::-webkit-scrollbar{display:none}`}</style>
+          <div className="no-sb" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+            {friends.map(f => (
+              <FriendPill key={f.name} name={f.name} tone={f.tone} avatar={f.avatar}
+                selected={f.name === selected} onClick={() => setSelected(f.name)}/>
+            ))}
+          </div>
+        </div>
+
+        {/* selected friend verdict */}
+        <div style={{ padding: '14px 20px 0' }}>
+          <FriendRow
+            name={sel.name}
+            status={details[sel.name].status}
+            detail={details[sel.name].detail}
+            tone={sel.tone}
+            avatar={sel.avatar}
+          />
+        </div>
+
+        <div style={{ padding: '18px 20px 28px', marginTop: 'auto', display: 'flex', gap: 10 }}>
+          <button onClick={onRestart} style={{ flex: 1, height: 46, borderRadius: 999, background: INK, color: CREAM, border: 'none', fontFamily:'"Inter", system-ui', fontSize: 13, fontWeight: 600, letterSpacing: 0.3, cursor: 'pointer' }}>Scan another</button>
+          <button style={{ width: 46, height: 46, borderRadius: '50%', background: 'transparent', border: `1px solid ${INK}`, color: INK, fontSize: 18, fontFamily:'"Instrument Serif", Georgia, serif', fontStyle: 'italic', cursor: 'pointer' }}>♡</button>
+        </div>
+      </div>
+    );
+  }
+
+  function ConsumerApp({ width = 360, height = 720 }) {
+    const [scene, setScene] = React.useState('idle'); // 'idle' | 'scanning' | 'results'
+    return (
+      <IOSDevice width={width} height={height}>
+        {scene === 'idle' && <IdleScreen onStart={() => setScene('scanning')}/>}
+        {scene === 'scanning' && <ScanningScreen onComplete={() => setScene('results')}/>}
+        {scene === 'results' && <ResultsScreen onRestart={() => setScene('idle')}/>}
+      </IOSDevice>
+    );
+  }
+
+  // hero phone shows RESULTS by default (so landing page communicates the payoff).
+  // consumer-section phone starts on IDLE so users can actually tap and see the flow.
+  function HeroPhone({ width, height }) {
+    const [scene, setScene] = React.useState('results');
+    return (
+      <IOSDevice width={width} height={height}>
+        {scene === 'idle' && <IdleScreen onStart={() => setScene('scanning')}/>}
+        {scene === 'scanning' && <ScanningScreen onComplete={() => setScene('results')}/>}
+        {scene === 'results' && <ResultsScreen onRestart={() => setScene('idle')}/>}
+      </IOSDevice>
+    );
+  }
+
+  // ──────── MAP APP (consumer-section phone) ────────
+  // Apple Maps-style tile background
+  function MapBackground() {
+    const pins = [
+      { x: 32, y: 18, r: 11, cert: true,  name: 'Fiorella' },
+      { x: 44, y: 22, r: 9,  cert: false, name: 'Taverna 12' },
+      { x: 38, y: 30, r: 13, cert: true,  name: 'Chloe' },
+      { x: 56, y: 24, r: 8,  cert: false, name: 'Osaka' },
+      { x: 64, y: 32, r: 10, cert: true,  name: 'Graines' },
+      { x: 52, y: 38, r: 8,  cert: false, name: 'Bixby' },
+      { x: 24, y: 32, r: 9,  cert: true,  name: 'Pelé' },
+      { x: 70, y: 20, r: 8,  cert: false, name: 'Noon' },
+      { x: 48, y: 12, r: 7,  cert: true,  name: 'Rook' },
+      { x: 16, y: 24, r: 7,  cert: false, name: 'Kome' },
+      { x: 78, y: 28, r: 7,  cert: false, name: 'Ori' },
+    ];
+    return (
+      <>
+        {/* Apple-Maps light base */}
+        <div style={{ position: 'absolute', inset: 0, background: '#e8e4d7' }}/>
+        {/* Parks */}
+        <svg viewBox="0 0 100 45" preserveAspectRatio="none" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '45%' }}>
+          {/* park blobs */}
+          <path d="M 8 6 Q 18 2 28 6 Q 30 14 22 16 Q 10 16 8 10 Z" fill="#cfddb8"/>
+          <path d="M 62 2 Q 78 0 86 8 Q 88 16 78 18 Q 64 16 62 8 Z" fill="#cfddb8"/>
+          <path d="M 44 30 Q 54 28 58 34 Q 56 40 46 40 Q 40 36 44 30 Z" fill="#cfddb8"/>
+          {/* water */}
+          <path d="M -4 38 C 18 34, 36 44, 54 40 S 88 36, 106 40 L 106 48 L -4 48 Z" fill="#b9d2d9"/>
+          {/* roads — thin white with grey outline */}
+          {[
+            'M -2 20 L 102 18',
+            'M -2 28 L 102 30',
+            'M -2 10 L 102 12',
+            'M 18 -2 L 22 50',
+            'M 34 -2 L 36 50',
+            'M 52 -2 L 50 50',
+            'M 68 -2 L 70 50',
+            'M 84 -2 L 86 50',
+          ].map((d, i) => (
+            <g key={i}>
+              <path d={d} stroke="#cfc9b8" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+              <path d={d} stroke="#ffffff" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+            </g>
+          ))}
+          {/* highway */}
+          <path d="M 4 44 L 24 30 L 48 22 L 78 10" stroke="#f2cf7a" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <path d="M 4 44 L 24 30 L 48 22 L 78 10" stroke="#f7e2a8" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+        </svg>
+
+        {/* Labels */}
+        <div style={{ position: 'absolute', top: '6%', left: '14%', fontFamily: 'Inter, system-ui', fontSize: 8.5, letterSpacing: 0.3, color: '#5a7045', fontWeight: 600 }}>Boom Island Park</div>
+        <div style={{ position: 'absolute', top: '7%', left: '66%', fontFamily: 'Inter, system-ui', fontSize: 8.5, letterSpacing: 0.3, color: '#5a7045', fontWeight: 600 }}>Nicollet Island</div>
+        <div style={{ position: 'absolute', top: '26%', left: '4%', fontFamily: 'Inter, system-ui', fontSize: 8, letterSpacing: 0.3, color: '#7a6b42', fontWeight: 600 }}>Target Field</div>
+        <div style={{ position: 'absolute', top: '17%', left: '38%', fontFamily: 'Inter, system-ui', fontSize: 7.5, letterSpacing: 2, color: 'rgba(90,76,50,0.7)', fontWeight: 600, textTransform: 'uppercase' }}>7TH ST</div>
+        <div style={{ position: 'absolute', top: '29%', left: '62%', fontFamily: 'Inter, system-ui', fontSize: 7.5, letterSpacing: 2, color: 'rgba(90,76,50,0.7)', fontWeight: 600, textTransform: 'uppercase' }}>SE MAIN</div>
+
+        {/* Pins — red teardrop (Apple Maps style) */}
+        {pins.map((p, i) => (
+          <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%, -100%)', zIndex: p.name === 'Chloe' ? 4 : 3 }}>
+            <svg width={p.r * 1.8} height={p.r * 2.4} viewBox="0 0 18 24" style={{ display: 'block', filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.35))' }}>
+              <path d="M 9 23.5 C 9 23.5, 1 13, 1 8 A 8 8 0 0 1 17 8 C 17 13, 9 23.5, 9 23.5 Z"
+                fill={p.cert ? '#4b8a3e' : '#d93a2a'}
+                stroke="#ffffff" strokeWidth="1.2"/>
+              <circle cx="9" cy="8" r="3" fill="#ffffff"/>
+            </svg>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  function MapApp({ width = 380, height = 760 }) {
+    const [open, setOpen] = React.useState(true); // start with sheet open
+    const items = [
+      { name: 'Grilled House Bread',             tags: [{ t: 'gluten', warn: true }] },
+      { name: 'Castelvetrano & Kalamata Olives', tags: [{ t: 'No allergens', warn: false }] },
+      { name: 'Hamachi Crudo',                   tags: [{ t: 'fish', warn: true }] },
+      { name: 'Fresh Ricotta',                   tags: [{ t: 'dairy', warn: true }, { t: 'gluten', warn: true }] },
+    ];
+    return (
+      <IOSDevice width={width} height={height}>
+        <div style={{ height: '100%', width: '100%', position: 'relative', overflow: 'hidden', background: '#e8e4d7' }}>
+          <MapBackground/>
+
+          {/* iOS status bar row */}
+          <div style={{ position: 'absolute', top: 14, left: 18, right: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'Inter, system-ui', fontSize: 13, color: INK, fontWeight: 600, zIndex: 6 }}>
+            <span>10:18</span>
+            <span style={{ fontSize: 10, letterSpacing: 1.5, color: 'rgba(21,33,26,0.7)' }}>●●●● ⟋ ▮86</span>
+          </div>
+
+          {/* Legend */}
+          <div style={{ position: 'absolute', top: 56, left: 14, background: 'rgba(244,241,234,0.95)', backdropFilter: 'blur(12px)', border: '0.5px solid rgba(21,33,26,0.12)', borderRadius: 12, padding: '10px 14px 11px', fontFamily: 'Inter, system-ui', fontSize: 11, color: INK, lineHeight: 1.55, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', zIndex: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4b8a3e' }}/>
+              <span>Allersight Certified</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#d93a2a' }}/>
+              <span>Restaurant</span>
+            </div>
+          </div>
+
+          {/* Bottom sheet (detents: open / peek) */}
+          <div
+            key={open ? 'open' : 'peek'}
+            style={{
+              position: 'absolute', left: 0, right: 0,
+              top: open ? '35%' : '82%',
+              bottom: 0,
+              background: CREAM,
+              borderTopLeftRadius: 22, borderTopRightRadius: 22,
+              padding: '10px 18px 20px',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 -18px 40px rgba(0,0,0,0.22)',
+              transition: 'top 420ms cubic-bezier(0.16, 1, 0.3, 1)',
+              zIndex: 10,
+            }}>
+            {/* grabber */}
+            <button onClick={() => setOpen(v => !v)} style={{
+              background: 'transparent', border: 'none', padding: '4px 0 10px',
+              cursor: 'pointer', display: 'block', width: '100%',
+            }}>
+              <div style={{ width: 36, height: 4, background: 'rgba(21,33,26,0.22)', borderRadius: 999, margin: '6px auto 0' }}/>
+            </button>
+
+            {/* header row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '4px 2px 14px' }}>
+              <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: 'italic', fontSize: 32, color: INK, letterSpacing: -0.6, lineHeight: 1 }}>Chloe</div>
+              <div style={{
+                border: `1px solid ${TERRA}`, borderRadius: 10,
+                padding: '5px 14px 4px', textAlign: 'center', minWidth: 70,
+              }}>
+                <div style={{ fontFamily: 'Inter, system-ui', fontWeight: 700, fontSize: 20, color: TERRA, letterSpacing: -0.3, lineHeight: 1 }}>61</div>
+                <div style={{ fontFamily: 'Inter, system-ui', fontSize: 8, letterSpacing: 1.5, color: TERRA, fontWeight: 600, marginTop: 3 }}>ALLERSENSE</div>
+              </div>
+            </div>
+
+            <div style={{ fontFamily: 'Inter, system-ui', fontSize: 9.5, letterSpacing: 2, textTransform: 'uppercase', color: TERRA, fontWeight: 700, marginBottom: 8 }}>Menu analysis</div>
+
+            {/* menu list */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
+              {items.map((it, i) => (
+                <div key={i} style={{
+                  background: '#fff', borderRadius: 10, padding: '11px 14px',
+                  boxShadow: '0 1px 2px rgba(21,33,26,0.04)',
+                  border: '0.5px solid rgba(21,33,26,0.06)',
+                }}>
+                  <div style={{ fontFamily: 'Inter, system-ui', fontSize: 13, fontWeight: 700, color: INK, letterSpacing: -0.1, marginBottom: 6 }}>{it.name}</div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    {it.tags.map((tg, j) => (
+                      <span key={j} style={{
+                        padding: '3px 9px', borderRadius: 999,
+                        fontFamily: 'Inter, system-ui', fontSize: 10.5, fontWeight: 500,
+                        background: tg.warn ? 'rgba(217,119,87,0.18)' : 'rgba(21,33,26,0.08)',
+                        color: tg.warn ? '#a1452a' : 'rgba(21,33,26,0.75)',
+                      }}>{tg.t}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* close (collapses to peek) */}
+            <button onClick={() => setOpen(false)} style={{
+              marginTop: 14, height: 44, borderRadius: 999,
+              background: INK, color: CREAM, border: 'none',
+              fontFamily: 'Inter, system-ui', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}>Close</button>
+          </div>
+        </div>
+      </IOSDevice>
+    );
+  }
+
+  const heroRoot = ReactDOM.createRoot(document.getElementById('hero-phone'));
+  heroRoot.render(<HeroPhone width={360} height={720}/>);
+
+  const consumerRoot = ReactDOM.createRoot(document.getElementById('consumer-phone'));
+  consumerRoot.render(<MapApp width={380} height={760}/>);
+</script>
+
+<!-- TWEAKS logic -->
+<script>
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#d97757",
+  "emphasis": "proven",
+  "phone": "consumer"
+}/*EDITMODE-END*/;
+
+(function(){
+  const state = Object.assign({}, TWEAK_DEFAULTS);
+  const panel = document.getElementById('tweaks');
+  function applyAccent(v) { document.documentElement.style.setProperty('--terra', v); }
+  function applyEmphasis(v) {
+    const el = document.querySelector('.hero h1 em');
+    if (el) el.textContent = v;
+  }
+  function applyPhone(v) { /* both phones are the consumer mock; tweak reserved for future */ }
+  function applyAll() { applyAccent(state.accent); applyEmphasis(state.emphasis); applyPhone(state.phone); }
+  function refreshActive() {
+    panel.querySelectorAll('.row').forEach(row => {
+      const grp = row.dataset.group;
+      row.querySelectorAll('button.opt').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === String(state[grp]));
+      });
+    });
+  }
+  panel.querySelectorAll('.row').forEach(row => {
+    const grp = row.dataset.group;
+    row.querySelectorAll('button.opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state[grp] = btn.dataset.val;
+        applyAll(); refreshActive();
+        try { window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[grp]: btn.dataset.val}}, '*'); } catch(e) {}
+      });
+    });
+  });
+  window.addEventListener('message', e => {
+    if (!e.data) return;
+    if (e.data.type === '__activate_edit_mode') panel.classList.add('open');
+    else if (e.data.type === '__deactivate_edit_mode') panel.classList.remove('open');
+  });
+  applyAll(); refreshActive();
+  try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e) {}
+})();
+</script>
+
+</body>
+</html>

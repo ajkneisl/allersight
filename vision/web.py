@@ -1,573 +1,346 @@
 #!/usr/bin/env python3
-"""AllerVision web UI — login gate, live feed with detection overlays."""
+"""AllerSight for Businesses — ingredient tracking web UI."""
 
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 
 import cv2
-from flask import Flask, Response, jsonify, redirect, render_template_string, request, session
+import json as _json
+import urllib.request
+import urllib.error
+from flask import Flask, Response, jsonify, render_template_string, request
 
 from config import Settings
 from pipeline import FrameState, run_pipeline
-from uploader import login as backend_login
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s")
 
 app = Flask(__name__)
-app.secret_key = "allervision-session-key"
+app.secret_key = "allersight-biz-session"
 
 _state = FrameState()
 _stop = threading.Event()
 _settings: Settings | None = None
 _pipeline_thread: threading.Thread | None = None
-_pipeline_lock = threading.Lock()
+
+_BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
+_BASE_PATH = os.getenv("BASE_PATH", "")  # e.g. "/business" when behind nginx
+
+# ── Shared CSS tokens (mirrors frontend/src/index.css :root) ──────────
+_CSS = """\
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --cream:#f4f1ea;--ink:#15211a;--green:#1f3d2b;--terra:#d97757;
+  --muted:rgba(21,33,26,0.55);--border:rgba(21,33,26,0.12);
+  --card:#fff;--radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--cream);color:var(--ink);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+"""
+
+# ── Brand mark (same as frontend BrandMark.tsx) ──────────────────────
+_BRAND_MARK = """\
+<span class="brand-mark">aller<span class="lens-o"></span>sight</span>
+"""
 
 # ── Login page ────────────────────────────────────────────────────────
-
 _LOGIN_HTML = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AllerVision — Sign In</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AllerSight for Business</title>
 <style>
-  :root {
-    --bg-primary: #0a0a0c;
-    --bg-card: #131318;
-    --border: #1e1e28;
-    --border-hover: #2d2d3a;
-    --accent: #6ee7a0;
-    --accent-dim: #3a8c5c;
-    --accent-glow: rgba(110, 231, 160, 0.08);
-    --text-primary: #e8e8ed;
-    --text-secondary: #8888a0;
-    --text-muted: #55556a;
-    --danger: #f06070;
-    --radius: 14px;
-    --radius-sm: 10px;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-font-smoothing: antialiased;
-  }
-  .login-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 40px 36px 36px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-  }
-  .logo-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-  .logo-mark {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent), #3ecf8e);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 700; color: #0a0a0c;
-  }
-  .logo-row h1 {
-    font-size: 1.15rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-  input[type="email"], input[type="password"] {
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
-    margin-bottom: 16px;
-  }
-  input:focus {
-    border-color: var(--accent-dim);
-  }
-  button {
-    width: 100%;
-    padding: 11px;
-    background: var(--accent);
-    color: #0a0a0c;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  button:hover { opacity: 0.85; }
-  .error {
-    background: rgba(240, 96, 112, 0.1);
-    border: 1px solid rgba(240, 96, 112, 0.3);
-    color: var(--danger);
-    font-size: 0.8rem;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 16px;
-  }
+""" + _CSS + """
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-card{width:100%;max-width:380px;text-align:center}
+.brand-mark{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:38px;letter-spacing:-0.5px;display:inline-flex;align-items:baseline}
+.lens-o{display:inline-block;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--terra);margin-left:2px;position:relative;top:-1px}
+.lens-o::after{content:'';position:absolute;inset:7px;border-radius:50%;background:var(--terra)}
+.subtitle{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-top:6px}
+.login-card form{margin-top:40px;display:flex;flex-direction:column;gap:14px;text-align:left}
+.field label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
+.field input{width:100%;padding:12px 14px;border-radius:10px;border:0.5px solid var(--border);background:var(--card);font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--ink);outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--terra)}
+.login-btn{margin-top:8px;padding:13px;border-radius:999px;border:none;background:var(--ink);color:var(--cream);font-family:'Inter',system-ui,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.5px;cursor:pointer;transition:background .15s}
+.login-btn:hover{background:var(--green)}
+.error{color:var(--terra);font-size:13px;text-align:center;min-height:20px;margin-top:4px}
 </style>
 </head>
 <body>
+<div class="login-wrap">
   <div class="login-card">
-    <div class="logo-row">
-      <div class="logo-mark">AV</div>
-      <h1>AllerVision</h1>
-    </div>
-    {% if error %}
-    <div class="error">{{ error }}</div>
-    {% endif %}
-    <form method="POST" action="/login">
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" required autofocus>
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" required>
-      <button type="submit">Sign In</button>
+    """ + _BRAND_MARK + """
+    <div class="subtitle">for business</div>
+    <form id="login-form">
+      <div class="field"><label>Email</label><input type="email" id="email" required autocomplete="email"></div>
+      <div class="field"><label>Password</label><input type="password" id="password" required autocomplete="current-password"></div>
+      <div class="error" id="error"></div>
+      <button type="submit" class="login-btn">Sign in</button>
     </form>
   </div>
+</div>
+<script>
+document.getElementById('login-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const err=document.getElementById('error');
+  err.textContent='';
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('password').value})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Login failed';return}
+    sessionStorage.setItem('token',d.token);
+    sessionStorage.setItem('email',d.email);
+    location.href='BASE_PATH/dashboard';
+  }catch(ex){err.textContent='Cannot reach server'}
+});
+</script>
 </body>
 </html>
 """
 
 # ── Dashboard page ────────────────────────────────────────────────────
-
 _DASH_HTML = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AllerVision</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AllerSight for Business</title>
 <style>
-  :root {
-    --bg-primary: #0a0a0c;
-    --bg-card: #131318;
-    --bg-card-hover: #1a1a22;
-    --border: #1e1e28;
-    --border-hover: #2d2d3a;
-    --accent: #6ee7a0;
-    --accent-dim: #3a8c5c;
-    --accent-glow: rgba(110, 231, 160, 0.08);
-    --text-primary: #e8e8ed;
-    --text-secondary: #8888a0;
-    --text-muted: #55556a;
-    --danger: #f06070;
-    --danger-dim: rgba(240, 96, 112, 0.12);
-    --radius: 14px;
-    --radius-sm: 10px;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-  }
-  header {
-    position: sticky; top: 0; z-index: 100; width: 100%;
-    padding: 0 28px; height: 56px;
-    background: rgba(10, 10, 12, 0.85);
-    backdrop-filter: blur(16px) saturate(1.4);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 14px;
-  }
-  .logo-mark {
-    width: 28px; height: 28px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent), #3ecf8e);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: #0a0a0c;
-  }
-  header h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.02em; }
-  .header-badge {
-    font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--accent);
-    background: var(--accent-glow);
-    border: 1px solid rgba(110, 231, 160, 0.15);
-    padding: 3px 8px; border-radius: 6px;
-  }
-  .header-spacer { flex: 1; }
-  .header-status {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 0.78rem; color: var(--text-secondary);
-  }
-  .pulse {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--accent);
-    animation: pulse-ring 2s ease-out infinite;
-  }
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(110,231,160,0.5); }
-    70% { box-shadow: 0 0 0 6px rgba(110,231,160,0); }
-    100% { box-shadow: 0 0 0 0 rgba(110,231,160,0); }
-  }
-  .logout-btn {
-    font-size: 0.72rem; color: var(--text-muted);
-    background: none; border: 1px solid var(--border);
-    padding: 4px 10px; border-radius: 6px; cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .logout-btn:hover { border-color: var(--border-hover); color: var(--text-secondary); }
-  .layout {
-    display: grid; grid-template-columns: 1fr 360px;
-    gap: 20px; padding: 20px 28px;
-    max-width: 1440px; margin: 0 auto;
-    min-height: calc(100vh - 56px);
-  }
-  .feed-panel { display: flex; flex-direction: column; gap: 14px; }
-  .feed-container {
-    position: relative; border-radius: var(--radius);
-    overflow: hidden; border: 1px solid var(--border);
-    background: #000;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 40px rgba(0,0,0,0.5);
-  }
-  .feed-container img { width: 100%; display: block; }
-  .feed-live-badge {
-    position: absolute; top: 12px; left: 12px;
-    display: flex; align-items: center; gap: 5px;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-    padding: 4px 10px; border-radius: 6px;
-    font-size: 0.7rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent);
-  }
-  .feed-live-badge .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #f04040; animation: blink 1.2s ease-in-out infinite;
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
-  .stat {
-    flex: 1; min-width: 120px;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 2px;
-  }
-  .stat-label {
-    font-size: 0.68rem; font-weight: 500; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--text-muted);
-  }
-  .stat-value {
-    font-size: 1.4rem; font-weight: 700; letter-spacing: -0.03em;
-    color: var(--text-primary); font-variant-numeric: tabular-nums;
-  }
-  .stat-value.accent { color: var(--accent); }
-  .log-panel { display: flex; flex-direction: column; gap: 0; min-height: 0; }
-  .log-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding-bottom: 12px;
-  }
-  .log-header h2 { font-size: 0.9rem; font-weight: 600; }
-  .log-count {
-    font-size: 0.72rem; color: var(--text-muted);
-    background: var(--bg-card); border: 1px solid var(--border);
-    padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums;
-  }
-  .log-list {
-    display: flex; flex-direction: column; gap: 8px;
-    overflow-y: auto; flex: 1; padding-right: 4px; min-height: 0;
-  }
-  .log-list::-webkit-scrollbar { width: 5px; }
-  .log-list::-webkit-scrollbar-track { background: transparent; }
-  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  .log-entry {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); overflow: hidden;
-    transition: border-color 0.2s, background 0.2s;
-    display: grid; grid-template-columns: 100px 1fr;
-  }
-  .log-entry:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
-  .log-entry.failed { border-color: rgba(240, 96, 112, 0.3); }
-  .log-thumb { width: 100px; height: 72px; object-fit: cover; display: block; background: #0a0a0c; }
-  .log-body {
-    padding: 10px 12px; display: flex; flex-direction: column;
-    justify-content: center; gap: 4px; min-width: 0;
-  }
-  .log-labels {
-    font-size: 0.8rem; font-weight: 500; color: var(--text-primary);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .log-time { font-size: 0.7rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-  .log-status-ok {
-    display: inline-block; font-size: 0.62rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--accent); background: var(--accent-glow);
-    padding: 1px 6px; border-radius: 4px; margin-left: 6px;
-  }
-  .log-status-fail {
-    display: inline-block; font-size: 0.62rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--danger); background: rgba(240,96,112,0.12);
-    padding: 1px 6px; border-radius: 4px; margin-left: 6px;
-  }
-  .log-count-badge {
-    display: inline-block; font-size: 0.68rem; font-weight: 600;
-    color: var(--text-secondary); background: var(--bg-primary);
-    border: 1px solid var(--border); padding: 0 5px;
-    border-radius: 4px; margin-left: 4px; vertical-align: middle;
-  }
-  .empty-log {
-    color: var(--text-muted); font-size: 0.82rem; text-align: center;
-    padding: 60px 0; border: 1px dashed var(--border); border-radius: var(--radius-sm);
-  }
-  .pager {
-    display: flex; gap: 4px; justify-content: center; padding-top: 10px;
-  }
-  .pager button {
-    background: var(--bg-card); border: 1px solid var(--border);
-    color: var(--text-secondary); border-radius: 6px;
-    padding: 4px 10px; font-size: 0.72rem; cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .pager button:hover { border-color: var(--border-hover); color: var(--text-primary); }
-  .pager button.active {
-    background: var(--accent-glow); border-color: var(--accent-dim);
-    color: var(--accent); font-weight: 600;
-  }
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; }
-    .log-panel { max-height: 420px; }
-  }
+""" + _CSS + """
+/* header */
+header{position:sticky;top:0;z-index:50;background:rgba(244,241,234,0.88);backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border-bottom:0.5px solid var(--border)}
+.nav{max-width:1280px;margin:0 auto;padding:16px 32px;display:flex;align-items:center;gap:16px}
+.brand-mark{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:24px;letter-spacing:-0.5px;display:inline-flex;align-items:baseline}
+.lens-o{display:inline-block;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--terra);margin-left:2px;position:relative;top:-1px}
+.lens-o::after{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--terra)}
+.nav .tag{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--terra);font-weight:600;background:rgba(217,119,87,0.1);border:0.5px solid rgba(217,119,87,0.2);padding:3px 8px;border-radius:6px}
+.spacer{flex:1}
+.nav .user{font-size:12px;color:var(--muted)}
+.nav .logout{padding:7px 14px;border-radius:999px;border:0.5px solid var(--border);background:transparent;font-family:'Inter',system-ui,sans-serif;font-size:11px;font-weight:500;color:var(--ink);cursor:pointer;transition:background .15s}
+.nav .logout:hover{background:rgba(21,33,26,0.06)}
+
+/* layout */
+.layout{max-width:1280px;margin:0 auto;padding:24px 32px;display:grid;grid-template-columns:1fr 380px;gap:20px;min-height:calc(100vh - 56px)}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+/* feed */
+.feed-box{position:relative;border-radius:var(--radius);overflow:hidden;border:0.5px solid var(--border);background:var(--ink)}
+.feed-box img{width:100%;display:block}
+.feed-disabled{display:flex;align-items:center;justify-content:center;min-height:360px;color:var(--muted);font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:18px}
+.live-badge{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:6px;background:rgba(21,33,26,0.7);backdrop-filter:blur(8px);padding:5px 10px;border-radius:8px;font-size:9px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;color:var(--cream)}
+.live-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--terra);animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* banners */
+.alert-banner{display:none;padding:12px 16px;border-radius:10px;background:rgba(217,119,87,0.08);border:0.5px solid rgba(217,119,87,0.25);color:var(--terra);font-size:13px;font-weight:500;margin-top:14px}
+.alert-banner.show{display:block}
+.cleared-banner{display:none;padding:12px 16px;border-radius:10px;background:rgba(31,61,43,0.08);border:0.5px solid rgba(31,61,43,0.2);color:var(--green);font-size:13px;font-weight:500;margin-top:14px}
+.cleared-banner.show{display:block}
+
+/* sidebar cards */
+.side{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius);padding:18px}
+.card h2{font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:22px;letter-spacing:-0.5px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.card h2 .count{font-family:'Inter',system-ui,sans-serif;font-size:10px;letter-spacing:1.6px;color:var(--muted);background:var(--cream);border:0.5px solid var(--border);padding:2px 8px;border-radius:6px;font-weight:600}
+
+/* ingredient list */
+.ing-list{display:flex;flex-direction:column;gap:6px;max-height:45vh;overflow-y:auto}
+.ing{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:0.5px solid var(--border);transition:background .15s}
+.ing:hover{background:var(--cream)}
+.ing.allergen{border-color:rgba(217,119,87,0.35);background:rgba(217,119,87,0.04)}
+.ing-name{flex:1;font-size:14px;font-weight:500}
+.ing-tag{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:3px 8px;border-radius:5px}
+.tag-allergen{color:var(--terra);background:rgba(217,119,87,0.1)}
+.tag-safe{color:var(--green);background:rgba(31,61,43,0.08)}
+.ing-time{font-size:11px;color:var(--muted)}
+
+/* wash log */
+.clear-list{display:flex;flex-direction:column;gap:6px}
+.clear-entry{font-size:13px;color:var(--ink);padding:8px 0;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between}
+.clear-entry .t{font-size:11px;color:var(--muted)}
+.empty{color:var(--muted);font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:15px;text-align:center;padding:30px 0}
+
+/* settings */
+.settings-row{display:flex;gap:8px}
+.settings-row input{flex:1;padding:10px 12px;border-radius:10px;border:0.5px solid var(--border);background:var(--cream);font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--ink);outline:none}
+.settings-row input:focus{border-color:var(--terra)}
+.settings-row button{padding:10px 16px;border-radius:10px;border:none;background:var(--ink);color:var(--cream);font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.settings-row button:hover{background:var(--green)}
+.cam-status{font-size:11px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
-  <header>
-    <div class="logo-mark">AV</div>
-    <h1>AllerVision</h1>
-    <span class="header-badge">Live</span>
-    <div class="header-spacer"></div>
-    <div class="header-status">
-      <span class="pulse"></span>
-      <span>Welcome back, {{ user_email }}</span>
+<header>
+  <div class="nav">
+    """ + _BRAND_MARK + """
+    <span class="tag">Business</span>
+    <div class="spacer"></div>
+    <span class="user" id="user-email"></span>
+    <button class="logout" onclick="sessionStorage.clear();location.href='BASE_PATH/'">Sign out</button>
+  </div>
+</header>
+<div class="layout">
+  <div class="feed-panel">
+    <div class="feed-box" id="feed-box">
+      <div class="feed-disabled" id="feed-off">Set a camera URL in settings to start</div>
+      <div class="live-badge" id="live-badge" style="display:none"><span class="dot"></span>Live</div>
+      <img id="feed-img" src="" alt="Live camera feed" style="display:none">
     </div>
-    <a class="logout-btn" href="/logout">Sign out</a>
-  </header>
-  <div class="layout">
-    <div class="feed-panel">
-      <div class="feed-container">
-        <div class="feed-live-badge"><span class="dot"></span> LIVE</div>
-        <img src="/feed" alt="Live camera feed">
-      </div>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-label">Detections</span>
-          <span class="stat-value accent" id="dets">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Uploaded</span>
-          <span class="stat-value" id="uploads">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Dupes Skipped</span>
-          <span class="stat-value" id="dupes">0</span>
-        </div>
-      </div>
+    <div class="alert-banner" id="alert"></div>
+    <div class="cleared-banner" id="cleared"></div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h2>Ingredients <span class="count" id="ing-count">0</span></h2>
+      <div class="ing-list" id="ing-list"><div class="empty">No ingredients detected yet</div></div>
     </div>
-    <div class="log-panel">
-      <div class="log-header">
-        <h2>Upload History</h2>
-        <span class="log-count" id="log-count">0 items</span>
+    <div class="card">
+      <h2>Wash log</h2>
+      <div class="clear-list" id="clear-list"><div class="empty">No washes recorded</div></div>
+    </div>
+    <div class="card">
+      <h2>Settings</h2>
+      <div class="settings-row">
+        <input type="text" id="cam-url" placeholder="Camera URL (MJPEG / RTSP)">
+        <button onclick="setCam()">Apply</button>
       </div>
-      <div class="log-list" id="log-list">
-        <div class="empty-log" id="empty-log">Waiting for detections&hellip;</div>
-      </div>
-      <div class="pager" id="pager"></div>
+      <div class="cam-status" id="cam-status"></div>
     </div>
   </div>
-  <script>
-    let knownCount = 0, currentPage = 1;
-    const PER_PAGE = 10;
-
-    function renderEntry(e) {
-      const div = document.createElement("div");
-      div.className = "log-entry" + (e.success ? "" : " failed");
-      const tag = e.success
-        ? '<span class="log-status-ok">sent</span>'
-        : '<span class="log-status-fail">failed</span>';
-      const countTag = e.count > 1
-        ? ' <span class="log-count-badge">&times;' + e.count + '</span>'
-        : '';
-      div.innerHTML =
-        '<img class="log-thumb" src="data:image/jpeg;base64,' + e.thumbnail + '" alt="Detected food">' +
-        '<div class="log-body">' +
-          '<div class="log-labels">' + e.labels.join(", ") + countTag + '</div>' +
-          '<div class="log-time">' + e.timestamp + tag + '</div>' +
-        '</div>';
-      return div;
-    }
-
-    async function loadPage(page) {
-      currentPage = page;
-      const lr = await fetch("/uploads?page=" + page);
-      const d = await lr.json();
-      const list = document.getElementById("log-list");
-      const empty = document.getElementById("empty-log");
-      if (empty) empty.remove();
-      list.innerHTML = "";
-      d.items.forEach(e => list.appendChild(renderEntry(e)));
-      renderPager(d.total, d.page);
-    }
-
-    function renderPager(total, page) {
-      const pages = Math.ceil(total / PER_PAGE);
-      const pager = document.getElementById("pager");
-      if (pages <= 1) { pager.innerHTML = ""; return; }
-      let html = "";
-      if (page > 1) html += '<button onclick="loadPage(' + (page-1) + ')">&lsaquo;</button>';
-      for (let i = 1; i <= pages; i++) {
-        html += '<button class="' + (i===page?'active':'') + '" onclick="loadPage(' + i + ')">' + i + '</button>';
-      }
-      if (page < pages) html += '<button onclick="loadPage(' + (page+1) + ')">&rsaquo;</button>';
-      pager.innerHTML = html;
-    }
-
-    async function poll() {
-      try {
-        const r = await fetch("/stats");
-        if (r.status === 401) { location.href = "/"; return; }
-        const d = await r.json();
-        document.getElementById("uploads").textContent = d.uploads;
-        document.getElementById("dupes").textContent = d.duplicates_skipped;
-        document.getElementById("dets").textContent = d.detections;
-        document.getElementById("log-count").textContent = d.log_count + " item" + (d.log_count === 1 ? "" : "s");
-        if (d.log_count !== knownCount) {
-          knownCount = d.log_count;
-          loadPage(currentPage);
-        }
-      } catch {}
-    }
-    setInterval(poll, 1000);
-  </script>
+</div>
+<script>
+if(!sessionStorage.getItem('token'))location.href='BASE_PATH/';
+document.getElementById('user-email').textContent=sessionStorage.getItem('email')||'';
+function showFeed(url){
+  const on=!!url;
+  document.getElementById('feed-off').style.display=on?'none':'flex';
+  document.getElementById('live-badge').style.display=on?'flex':'none';
+  const img=document.getElementById('feed-img');
+  if(on){img.src='/feed?t='+Date.now();img.style.display='block'}else{img.src='';img.style.display='none'}
+}
+fetch('/api/settings').then(r=>r.json()).then(d=>{document.getElementById('cam-url').value=d.camera_url||'';showFeed(d.camera_url)});
+async function setCam(){
+  const s=document.getElementById('cam-status');
+  s.textContent='Applying…';
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({camera_url:document.getElementById('cam-url').value})});
+    const d=await r.json();
+    s.textContent=r.ok?'Camera updated — restarting feed…':d.error||'Failed';
+    if(r.ok)setTimeout(()=>{showFeed(d.camera_url);s.textContent=''},2000);
+  }catch(e){s.textContent='Error'}
+}
+let prevClearCount=0;
+async function poll(){
+  try{
+    const r=await fetch('/api/state');const d=await r.json();
+    document.getElementById('ing-count').textContent=d.ingredients.length;
+    const list=document.getElementById('ing-list');
+    if(!d.ingredients.length){list.innerHTML='<div class="empty">No ingredients detected yet</div>'}
+    else{list.innerHTML=d.ingredients.map(i=>{
+      const isA=i.allergens.length>0;
+      const tags=isA?i.allergens.map(a=>'<span class="ing-tag tag-allergen">\\u26a0 '+a+'</span>').join(''):'<span class="ing-tag tag-safe">safe</span>';
+      return '<div class="ing'+(isA?' allergen':'')+'"><span class="ing-name">'+i.name+(i.count>1?' \\xd7'+i.count:'')+'</span>'+tags+'<span class="ing-time">'+i.first_seen+'</span></div>'
+    }).join('')}
+    const allergens=d.ingredients.filter(i=>i.allergens.length>0);
+    const ab=document.getElementById('alert');
+    if(allergens.length){ab.textContent='\\u26a0 Allergen alert: '+allergens.map(i=>i.name).join(', ')+' \\u2014 handle with care';ab.classList.add('show')}else{ab.classList.remove('show')}
+    const cb=document.getElementById('cleared');
+    if(d.clear_log.length>prevClearCount){cb.textContent='\\ud83e\\uddfc Station cleared \\u2014 '+d.clear_log[0].ingredients_cleared+' ingredients washed at '+d.clear_log[0].timestamp;cb.classList.add('show');setTimeout(()=>cb.classList.remove('show'),5000)}
+    prevClearCount=d.clear_log.length;
+    const cl=document.getElementById('clear-list');
+    if(!d.clear_log.length){cl.innerHTML='<div class="empty">No washes recorded</div>'}
+    else{cl.innerHTML=d.clear_log.map(c=>'<div class="clear-entry"><span>Cleared '+c.ingredients_cleared+' ingredients</span><span class="t">'+c.timestamp+'</span></div>').join('')}
+  }catch{}
+}
+setInterval(poll,800);
+</script>
 </body>
 </html>
 """
 
 
-# ── Helpers ───────────────────────────────────────────────────────────
-
-def _require_auth():
-    """Return True if the user is logged in."""
-    return "token" in session
-
-
-def _start_pipeline(token: str) -> None:
-    """Start the detection pipeline (once) with the given JWT."""
-    global _pipeline_thread
-    with _pipeline_lock:
-        if _pipeline_thread is not None and _pipeline_thread.is_alive():
-            return
-        _stop.clear()
-        _pipeline_thread = threading.Thread(
-            target=run_pipeline,
-            args=(_settings, _state, _stop),
-            kwargs={"token": token},
-            daemon=True,
-        )
-        _pipeline_thread.start()
-
-
-# ── Routes ────────────────────────────────────────────────────────────
-
 @app.route("/")
 def index():
-    if not _require_auth():
-        return render_template_string(_LOGIN_HTML, error=None)
-    return render_template_string(_DASH_HTML, user_email=session["email"])
+    return render_template_string(_LOGIN_HTML.replace("BASE_PATH", _BASE_PATH))
 
 
-@app.route("/login", methods=["POST"])
-def do_login():
-    email = request.form.get("email", "").strip()
-    password = request.form.get("password", "")
-    try:
-        token, user_email = backend_login(_settings.backend_url, email, password)
-    except Exception:
-        return render_template_string(_LOGIN_HTML, error="Invalid email or password"), 401
-
-    session["token"] = token
-    session["email"] = user_email
-    logging.getLogger("allervision").info("Welcome back, %s", user_email)
-    _start_pipeline(token)
-    return redirect("/")
+@app.route("/dashboard")
+def dashboard():
+    return render_template_string(_DASH_HTML.replace("BASE_PATH", _BASE_PATH))
 
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
-
-
-@app.route("/stats")
-def stats():
-    if not _require_auth():
-        return jsonify({"error": "unauthorized"}), 401
+@app.route("/api/state")
+def api_state():
     with _state.lock:
         return jsonify({
-            "uploads": _state.uploads_count,
-            "duplicates_skipped": _state.duplicates_skipped,
-            "detections": len(_state.detections),
-            "log_count": len(_state.upload_log),
+            "ingredients": [
+                {"name": i.name, "allergens": i.allergens, "first_seen": i.first_seen, "count": i.count}
+                for i in _state.ingredients
+            ],
+            "clear_log": [
+                {"timestamp": c.timestamp, "ingredients_cleared": c.ingredients_cleared}
+                for c in _state.clear_log
+            ],
         })
 
 
-@app.route("/uploads")
-def uploads():
-    if not _require_auth():
-        return jsonify({"error": "unauthorized"}), 401
-    page = request.args.get("page", 1, type=int)
-    per_page = 10
-    with _state.lock:
-        total = len(_state.upload_log)
-        start = (page - 1) * per_page
-        page_items = _state.upload_log[start:start + per_page]
-        items = [
-            {
-                "timestamp": e.timestamp,
-                "labels": e.labels,
-                "thumbnail": e.thumbnail_b64,
-                "success": e.success,
-                "count": e.count,
-            }
-            for e in page_items
-        ]
-    return jsonify({"items": items, "total": total, "page": page})
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    try:
+        body = _json.dumps(request.get_json()).encode()
+        req = urllib.request.Request(
+            f"{_BACKEND_URL}/api/auth/login",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return Response(resp.read(), status=resp.status, content_type="application/json")
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code, content_type="application/json")
+    except Exception:
+        return jsonify({"error": "Cannot reach backend"}), 502
+
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings_get():
+    return jsonify({"camera_url": _settings.camera_url if _settings else ""})
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_settings_post():
+    global _settings, _pipeline_thread
+    data = request.get_json()
+    url = (data or {}).get("camera_url", "").strip()
+    if not url:
+        return jsonify({"error": "camera_url is required"}), 400
+
+    # Stop current pipeline
+    _stop.set()
+    if _pipeline_thread:
+        _pipeline_thread.join(timeout=5)
+
+    # Update settings and restart
+    _settings = Settings(camera_url=url)  # type: ignore[call-arg]
+    _stop.clear()
+    _state.frame = None
+    _pipeline_thread = threading.Thread(
+        target=run_pipeline, args=(_settings, _state, _stop), daemon=True,
+    )
+    _pipeline_thread.start()
+    return jsonify({"ok": True, "camera_url": url})
 
 
 def _generate_mjpeg():
-    """Yield MJPEG frames. Reads the latest annotated frame without blocking."""
     last_id = id(None)
     while not _stop.is_set():
-        frame = _state.frame  # atomic read, no lock needed for reference
+        frame = _state.frame
         fid = id(frame)
         if frame is None or fid == last_id:
             time.sleep(0.016)
@@ -576,34 +349,32 @@ def _generate_mjpeg():
         ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
         if not ok:
             continue
-        yield (
-            b"--frame\r\n"
-            b"Content-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
-        )
+        yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
 
 
 @app.route("/feed")
 def feed():
-    if not _require_auth():
-        return "", 401
-    return Response(
-        _generate_mjpeg(),
-        mimetype="multipart/x-mixed-replace; boundary=frame",
-    )
+    return Response(_generate_mjpeg(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
 def main() -> None:
-    global _settings
+    global _settings, _pipeline_thread
     _settings = Settings()  # type: ignore[call-arg]
 
-    port = 8501
-    logging.getLogger("allervision").info("AllerVision UI at http://localhost:%d", port)
+    _stop.clear()
+    if _settings.camera_url:
+        _pipeline_thread = threading.Thread(
+            target=run_pipeline, args=(_settings, _state, _stop), daemon=True,
+        )
+        _pipeline_thread.start()
 
+    port = 8501
+    logging.getLogger("allersight").info("AllerSight for Businesses at http://localhost:%d", port)
     try:
         app.run(host="0.0.0.0", port=port, threaded=True)
     finally:
         _stop.set()
-        if _pipeline_thread is not None:
+        if _pipeline_thread:
             _pipeline_thread.join(timeout=5)
 
 

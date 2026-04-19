@@ -50,8 +50,13 @@ export type FoodItem = {
   calories: number;
   problemIngredients: string[];
   allergens: Allergen[];
+  dietViolations: string[];
   detectedAt: string;
   location: string;
+  alternative?: string;
+  error?: string;
+  loading?: boolean;
+  friendAllergens?: { name: string; allergens: string[] }[];
 };
 
 export type Friend = {
@@ -125,6 +130,7 @@ export const MOCK_FEED: FoodItem[] = [
       'brown sugar',
     ],
     allergens: ['peanuts', 'soy', 'gluten'],
+    dietViolations: [],
     detectedAt: '2026-04-17T18:42:00Z',
     location: 'Thai Orchid · Ravenna',
   },
@@ -145,6 +151,7 @@ export const MOCK_FEED: FoodItem[] = [
       'worcestershire',
     ],
     allergens: ['dairy', 'eggs', 'fish', 'gluten'],
+    dietViolations: [],
     detectedAt: '2026-04-17T12:15:00Z',
     location: 'Home · Kitchen',
   },
@@ -158,6 +165,7 @@ export const MOCK_FEED: FoodItem[] = [
     calories: 340,
     problemIngredients: ['sourdough', 'egg', 'chili flakes', 'olive oil'],
     allergens: ['gluten', 'eggs'],
+    dietViolations: [],
     detectedAt: '2026-04-16T09:10:00Z',
     location: 'Blue Bottle · Capitol Hill',
   },
@@ -177,6 +185,7 @@ export const MOCK_FEED: FoodItem[] = [
       'rice noodles',
     ],
     allergens: ['shellfish', 'soy', 'gluten'],
+    dietViolations: [],
     detectedAt: '2026-04-16T19:30:00Z',
     location: 'Bangkok 6 · Ballard',
   },
@@ -196,6 +205,7 @@ export const MOCK_FEED: FoodItem[] = [
       'scallion',
     ],
     allergens: ['soy', 'sesame'],
+    dietViolations: [],
     detectedAt: '2026-04-15T13:05:00Z',
     location: 'Home · Lunch',
   },
@@ -208,6 +218,7 @@ export const MOCK_FEED: FoodItem[] = [
     calories: 780,
     problemIngredients: ['mozzarella', 'wheat flour', 'olive oil', 'basil'],
     allergens: ['dairy', 'gluten'],
+    dietViolations: [],
     detectedAt: '2026-04-14T20:05:00Z',
     location: 'Delancey · Ballard',
   },

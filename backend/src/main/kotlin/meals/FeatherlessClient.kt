@@ -35,6 +35,8 @@ data class FeatherlessResult(
     val ingredients: List<String> = emptyList(),
 )
 
+class NoFoodDetectedException : RuntimeException("No food detected in image")
+
 class FeatherlessClient(private val apiKey: String?) {
 
     private val log = LoggerFactory.getLogger("featherless")
@@ -62,7 +64,7 @@ class FeatherlessClient(private val apiKey: String?) {
             append("protein (integer, grams), ")
             append("carbs (integer, grams), ")
             append("fat (integer, grams), ")
-            append("allergens (array of strings from: peanuts, tree-nuts, dairy, eggs, gluten, soy, shellfish, fish, sesame), ")
+            append("allergens (array of strings from: peanuts, tree-nuts, dairy, eggs, gluten, soy, shellfish, fish, sesame — infer allergens from ingredients even if not directly visible, e.g. pizza dough contains gluten, cheese contains dairy, soy sauce contains soy and gluten, bread contains gluten, butter/cream contain dairy, mayo contains eggs), ")
             append("ingredients (array of strings, main visible ingredients). ")
             append("Return ONLY the JSON, no markdown, no explanation.")
         }
@@ -70,6 +72,7 @@ class FeatherlessClient(private val apiKey: String?) {
         log.info("Sending request — prompt: {}", prompt)
 
         val models = listOf(
+            "google/gemma-4-31B-it",
             "google/gemma-3-12b-it",
             "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
             "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
@@ -125,11 +128,18 @@ class FeatherlessClient(private val apiKey: String?) {
     }
 
     private fun parseResult(raw: String): FeatherlessResult {
-        // Strip markdown fences if present
         val cleaned = raw.replace(Regex("```json\\s*"), "").replace(Regex("```\\s*"), "").trim()
+        // Detect refusal / no food responses
+        if (!cleaned.startsWith("{")) {
+            throw NoFoodDetectedException()
+        }
         val obj = json.parseToJsonElement(cleaned).jsonObject
+        val name = obj["name"]?.jsonPrimitive?.content ?: "Unknown"
+        if (name.equals("none", ignoreCase = true) || name.equals("unknown", ignoreCase = true)) {
+            throw NoFoodDetectedException()
+        }
         return FeatherlessResult(
-            name = obj["name"]?.jsonPrimitive?.content ?: "Unknown",
+            name = name,
             description = obj["description"]?.jsonPrimitive?.content ?: "",
             calories = obj["calories"]?.jsonPrimitive?.content?.toIntOrNull(),
             protein = obj["protein"]?.jsonPrimitive?.content?.toIntOrNull(),

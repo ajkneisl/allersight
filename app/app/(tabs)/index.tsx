@@ -1,8 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as Location from 'expo-location';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   SectionList,
@@ -14,15 +18,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Header } from '@/components/brand/header';
 import { FoodCard } from '@/components/food/food-card';
+import { Pill } from '@/components/ui/pill';
 import { BRAND, FONTS } from '@/constants/brand';
-import type { FoodItem } from '@/constants/mock-data';
+import type { Allergen, FoodItem } from '@/constants/mock-data';
+import { ALLERGENS } from '@/constants/mock-data';
 import { formatDayLabel } from '@/constants/time';
 import { apiFetch, API_BASE_URL } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { useVisionStatus } from '@/lib/use-vision-status';
+
+const ALLERGEN_LABEL = Object.fromEntries(ALLERGENS.map((a) => [a.id, a.label])) as Record<string, string>;
 
 type MealResponse = {
   id: number;
+  status: string;
   name: string;
   description: string;
   calories: number | null;
@@ -33,9 +41,21 @@ type MealResponse = {
   recipeName: string | null;
   ingredients: string[];
   allergens?: string[];
+  dietViolations?: string[];
+  alternative?: string | null;
   location: { label?: string } | null;
   imageUrl: string | null;
   createdAt: string;
+};
+
+type ApiFriend = {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  allergens: string[];
+  diet: string;
+  sharedAllergens: number;
 };
 
 type Section = { title: string; data: FoodItem[] };
@@ -43,28 +63,37 @@ type Section = { title: string; data: FoodItem[] };
 function mealToFoodItem(m: MealResponse): FoodItem {
   return {
     id: String(m.id),
-    title: m.name || m.recipeName || m.description.slice(0, 60),
+    title: m.status === 'error' ? 'Not recognized' : (m.name || m.recipeName || m.description.slice(0, 60)),
     description: m.description,
     photo: m.imageUrl ? `${API_BASE_URL}${m.imageUrl}` : '',
     calories: m.calories ?? 0,
     problemIngredients: m.ingredients,
-    allergens: (m.allergens ?? []) as any,
+    allergens: (m.allergens ?? []) as Allergen[],
+    dietViolations: m.dietViolations ?? [],
     detectedAt: m.createdAt,
     location: m.location?.label ?? m.restaurant ?? '',
+    alternative: m.alternative ?? undefined,
+    error: m.status === 'error' ? 'Food not detected' : undefined,
+    loading: m.status === 'pending',
   };
 }
 
 export default function HomeScreen() {
   const { token } = useAuth();
-  const { connected: visionConnected, refresh: refreshVision } = useVisionStatus();
   const [meals, setMeals] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const mealWs = useRef<WebSocket | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  // Load meals via REST
+  // Friend allergen check state
+  const [friends, setFriends] = useState<ApiFriend[]>([]);
+  const [lastScanAllergens, setLastScanAllergens] = useState<string[]>([]);
+  const [friendModalOpen, setFriendModalOpen] = useState(false);
+  const [scannedImageUri, setScannedImageUri] = useState<string | null>(null);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<number>>(new Set());
+  const [lastMealId, setLastMealId] = useState<string | null>(null);
+  const [pendingScan, setPendingScan] = useState<{ base64: string; mimeType: string; location?: { label?: string; latitude?: number; longitude?: number } } | null>(null);
+
   const load = useCallback((isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     apiFetch<MealResponse[]>('/meals', {}, token)
@@ -73,68 +102,78 @@ export default function HomeScreen() {
       .finally(() => { setLoading(false); setRefreshing(false); });
   }, [token]);
 
-  // Initial load
   useEffect(() => { load(); }, [load]);
 
-  // When vision is connected: open /ws/meals for live updates, stop polling
-  // When disconnected: close ws, start polling
+  // Load friends for allergen check
   useEffect(() => {
-    if (visionConnected && token) {
-      // Stop polling
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    apiFetch<ApiFriend[]>('/friends', {}, token).then(setFriends).catch(() => {});
+  }, [token]);
 
-      // Connect meal websocket
-      const url = API_BASE_URL.replace(/^http/, 'ws') + `/ws/meals?token=${token}`;
-      const ws = new WebSocket(url);
-      mealWs.current = ws;
+  const scanMeal = async () => {
+    const cameraPerm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!cameraPerm.granted) return;
 
-      ws.onmessage = (e) => {
-        try {
-          const meal: MealResponse = JSON.parse(e.data);
-          const item = mealToFoodItem(meal);
-          setMeals((prev) => {
-            // Update existing or prepend new
-            const idx = prev.findIndex((m) => m.id === item.id);
-            if (idx >= 0) {
-              const next = [...prev];
-              next[idx] = item;
-              return next;
-            }
-            return [item, ...prev];
-          });
-        } catch {}
-      };
-
-      ws.onclose = () => { mealWs.current = null; };
-
-      return () => { ws.close(); mealWs.current = null; };
-    } else {
-      // Vision disconnected — close ws if open, start polling
-      if (mealWs.current) { mealWs.current.close(); mealWs.current = null; }
-      pollRef.current = setInterval(() => load(), 10_000);
-      return () => { if (pollRef.current) clearInterval(pollRef.current); };
-    }
-  }, [visionConnected, token, load]);
-
-  const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return;
     const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.8 });
     if (result.canceled || !result.assets[0].base64) return;
 
-    setUploading(true);
+    setScannedImageUri(result.assets[0].uri);
+    setSelectedFriendIds(new Set());
+
+    // Get location
+    let location: { label?: string; latitude?: number; longitude?: number } | undefined;
     try {
-      await apiFetch('/meals', {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const [geo] = await Location.reverseGeocodeAsync(loc.coords).catch(() => []);
+        const label = geo ? [geo.name, geo.city].filter(Boolean).join(', ') : undefined;
+        location = { label, latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      }
+    } catch {}
+
+    setPendingScan({ base64: result.assets[0].base64, mimeType: 'image/jpeg', location });
+    setFriendModalOpen(true);
+  };
+
+  // Find friends affected by the scanned meal's allergens
+  const toggleFriend = (id: number) => {
+    setSelectedFriendIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const confirmFriends = async () => {
+    setFriendModalOpen(false);
+    if (!pendingScan) return;
+
+    setScanning(true);
+    try {
+      const meal = await apiFetch<MealResponse>('/meals', {
         method: 'POST',
         body: JSON.stringify({
-          image: result.assets[0].base64,
-          description: 'Manual photo upload',
-          mimeType: 'image/jpeg',
+          image: pendingScan.base64,
+          mimeType: pendingScan.mimeType,
+          location: pendingScan.location,
+          friendIds: Array.from(selectedFriendIds),
         }),
       }, token);
-      load(true);
+
+      setMeals((prev) => [mealToFoodItem(meal), ...prev]);
+
+      // Poll for AI-enriched data
+      for (const delay of [3000, 8000, 15000]) {
+        setTimeout(async () => {
+          try {
+            const updated = await apiFetch<MealResponse[]>('/meals', {}, token);
+            setMeals(updated.map(mealToFoodItem));
+          } catch {}
+        }, delay);
+      }
     } catch {}
-    setUploading(false);
+    setPendingScan(null);
+    setScanning(false);
   };
 
   const sections = useMemo<Section[]>(() => {
@@ -162,40 +201,20 @@ export default function HomeScreen() {
             <Header
               eyebrow="Today's feed"
               title="Everything on your plate."
-              subtitle="The scans, the verdicts, and the macros logged so far."
+              subtitle="Scan your food to get calories, allergens, and check if it's safe for your friends."
             />
-
-            <View style={[styles.banner, visionConnected ? styles.bannerConnected : styles.bannerDisconnected]}>
-              <View style={styles.bannerLeft}>
-                <View style={[styles.dot, { backgroundColor: visionConnected ? '#34d399' : BRAND.terra }]} />
-                <Text style={styles.bannerText}>
-                  {visionConnected ? 'Vision connected — live updates' : 'Vision disconnected'}
-                </Text>
-              </View>
-              {visionConnected ? (
-                <View style={styles.liveBadge}>
-                  <Text style={styles.liveText}>LIVE</Text>
-                </View>
+            <Pressable
+              onPress={scanMeal}
+              disabled={scanning}
+              style={({ pressed }) => [styles.scanBtn, (pressed || scanning) && { opacity: 0.85 }]}
+            >
+              {scanning ? (
+                <ActivityIndicator size="small" color={BRAND.cream} />
               ) : (
-                <View style={styles.bannerActions}>
-                  <Pressable
-                    onPress={refreshVision}
-                    style={({ pressed }) => [styles.refreshBtn, pressed && { opacity: 0.7 }]}
-                    hitSlop={8}
-                  >
-                    <MaterialCommunityIcons name="refresh" size={16} color={BRAND.ink} />
-                  </Pressable>
-                  <Pressable
-                    onPress={takePhoto}
-                    disabled={uploading}
-                    style={({ pressed }) => [styles.cameraBtn, (pressed || uploading) && { opacity: 0.8 }]}
-                  >
-                    <MaterialCommunityIcons name="camera" size={16} color={BRAND.cream} />
-                    <Text style={styles.cameraBtnText}>{uploading ? 'Uploading…' : 'Snap a meal'}</Text>
-                  </Pressable>
-                </View>
+                <MaterialCommunityIcons name="camera" size={20} color={BRAND.cream} />
               )}
-            </View>
+              <Text style={styles.scanBtnText}>{scanning ? 'Analyzing…' : 'Scan a meal'}</Text>
+            </Pressable>
           </View>
         }
         renderSectionHeader={({ section }) => (
@@ -208,44 +227,118 @@ export default function HomeScreen() {
           ) : (
             <View style={{ padding: 40, alignItems: 'center' }}>
               <Text style={styles.empty}>No meals scanned yet.</Text>
+              <Text style={styles.emptyHint}>Tap "Scan a meal" to get started.</Text>
             </View>
           )
         }
         contentContainerStyle={{ paddingBottom: 24, paddingTop: 8 }}
       />
+
+      {/* Friend allergen check modal */}
+      <Modal visible={friendModalOpen} transparent animationType="slide" onRequestClose={() => setFriendModalOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={confirmFriends}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+
+            {scannedImageUri && (
+              <Image source={{ uri: scannedImageUri }} style={styles.sheetImage} contentFit="cover" />
+            )}
+
+            <Text style={styles.sheetTitle}>Who's eating?</Text>
+            <Text style={styles.sheetHint}>
+              Select friends sharing this meal — we'll check for allergen conflicts once analysis is complete.
+            </Text>
+
+            {friends.length > 0 ? (
+              <View style={styles.friendSection}>
+                {friends.map((f) => {
+                  const checked = selectedFriendIds.has(f.userId);
+                  return (
+                    <Pressable key={f.id} onPress={() => toggleFriend(f.userId)} style={[styles.friendRow, checked && styles.friendRowSelected]}>
+                      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                        {checked && <MaterialCommunityIcons name="check" size={14} color={BRAND.cream} />}
+                      </View>
+                      <View style={styles.friendInfo}>
+                        <Text style={styles.friendName}>{f.name}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                <MaterialCommunityIcons name="account-group-outline" size={32} color={BRAND.muted} />
+                <Text style={styles.noFriends}>No friends added yet.</Text>
+                <Text style={{ fontFamily: FONTS.sans, fontSize: 13, color: BRAND.textSubtle, textAlign: 'center' }}>
+                  Add friends to check allergen safety when sharing meals.
+                </Text>
+              </View>
+            )}
+
+            <Pressable onPress={confirmFriends} style={styles.doneBtn}>
+              <Text style={styles.doneBtnText}>Done</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: {
+  scanBtn: {
     marginHorizontal: 20, marginTop: 12, marginBottom: 4,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 0.5,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 10, paddingVertical: 16, borderRadius: 999, backgroundColor: BRAND.ink,
+    shadowColor: BRAND.ink, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
   },
-  bannerConnected: { backgroundColor: 'rgba(52,211,153,0.08)', borderColor: 'rgba(52,211,153,0.25)' },
-  bannerDisconnected: { backgroundColor: 'rgba(217,119,87,0.08)', borderColor: 'rgba(217,119,87,0.25)' },
-  bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  bannerText: { fontFamily: FONTS.sansMedium, fontSize: 13, color: BRAND.ink, letterSpacing: 0.2 },
-  bannerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveBadge: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-    backgroundColor: 'rgba(52,211,153,0.2)',
-  },
-  liveText: { fontFamily: FONTS.sansSemi, fontSize: 10, letterSpacing: 1.5, color: '#059669' },
-  refreshBtn: {
-    width: 34, height: 34, borderRadius: 17, borderWidth: 0.5, borderColor: BRAND.border,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: BRAND.card,
-  },
-  cameraBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: BRAND.ink,
-  },
-  cameraBtnText: { fontFamily: FONTS.sansSemi, fontSize: 12, color: BRAND.cream, letterSpacing: 0.3 },
+  scanBtnText: { fontFamily: FONTS.sansSemi, fontSize: 15, color: BRAND.cream, letterSpacing: 0.3 },
   sectionHeader: {
     marginTop: 24, marginBottom: 12, marginHorizontal: 20,
     fontFamily: FONTS.serifItalic, fontSize: 24, color: BRAND.ink, letterSpacing: -0.4,
   },
   empty: { fontFamily: FONTS.serifItalic, fontSize: 18, color: BRAND.muted, textAlign: 'center' },
+  emptyHint: { fontFamily: FONTS.sans, fontSize: 13, color: BRAND.textSubtle, textAlign: 'center', marginTop: 6 },
+  // Modal
+  backdrop: { flex: 1, backgroundColor: 'rgba(21,33,26,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: BRAND.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40, maxHeight: '75%',
+  },
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: BRAND.border,
+    alignSelf: 'center', marginBottom: 16,
+  },
+  sheetTitle: { fontFamily: FONTS.serifItalic, fontSize: 26, color: BRAND.ink, letterSpacing: -0.4 },
+  sheetHint: { fontFamily: FONTS.sans, fontSize: 14, lineHeight: 20, color: BRAND.muted, marginTop: 6, marginBottom: 16 },
+  sheetImage: { width: '100%', height: 180, borderRadius: 14, marginBottom: 16 },
+  friendSection: { gap: 8, marginBottom: 16 },
+  friendSectionLabel: {
+    fontFamily: FONTS.sansSemi, fontSize: 10, letterSpacing: 2,
+    textTransform: 'uppercase', color: BRAND.terra,
+  },
+  friendRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 12, borderRadius: 14, backgroundColor: BRAND.card,
+    borderWidth: 0.5, borderColor: BRAND.border,
+  },
+  friendRowSelected: {
+    borderColor: BRAND.green, backgroundColor: 'rgba(31,61,43,0.04)',
+  },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 7, borderWidth: 1.5,
+    borderColor: BRAND.border, alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: BRAND.green, borderColor: BRAND.green,
+  },
+  friendInfo: { flex: 1, gap: 6 },
+  friendName: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.ink },
+  friendPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  noFriends: { fontFamily: FONTS.sans, fontSize: 14, color: BRAND.muted, textAlign: 'center', paddingVertical: 20 },
+  doneBtn: {
+    marginTop: 8, paddingVertical: 14, borderRadius: 999,
+    backgroundColor: BRAND.ink, alignItems: 'center',
+  },
+  doneBtnText: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.cream, letterSpacing: 0.3 },
 });

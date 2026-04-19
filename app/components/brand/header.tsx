@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { AllerlensLogo } from '@/components/brand/logo';
+import { AllersightLogo } from '@/components/brand/logo';
 import { BRAND, FONTS } from '@/constants/brand';
 
 export function Header({
@@ -15,14 +15,14 @@ export function Header({
   return (
     <View style={styles.container}>
       <View style={styles.brandRow}>
-        <AllerlensLogo size="sm" />
+        <AllersightLogo size="sm" />
+        {eyebrow ? (
+          <View style={styles.eyebrowRow}>
+            <View style={styles.rule} />
+            <Text style={styles.eyebrow}>{eyebrow}</Text>
+          </View>
+        ) : null}
       </View>
-      {eyebrow ? (
-        <View style={styles.eyebrowRow}>
-          <View style={styles.rule} />
-          <Text style={styles.eyebrow}>{eyebrow}</Text>
-        </View>
-      ) : null}
       {title ? <Text style={styles.title}>{title}</Text> : null}
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -36,13 +36,15 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 18,
   },
   eyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
   },
   rule: { width: 24, height: 1, backgroundColor: BRAND.terra },
   eyebrow: {

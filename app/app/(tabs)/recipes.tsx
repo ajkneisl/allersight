@@ -1,125 +1,128 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, Callout, type Region } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Header } from '@/components/brand/header';
-import { FriendFilter } from '@/components/friends/friend-filter';
-import { RecipeCard } from '@/components/food/recipe-card';
 import { BRAND, FONTS } from '@/constants/brand';
-import type { Friend, Recipe } from '@/constants/mock-data';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
-type ApiFriend = {
+type Restaurant = {
   id: number;
-  userId: number;
+  placeId: string;
   name: string;
-  email: string;
-  allergens: string[];
-  diet: string;
-  sharedAllergens: number;
-};
-
-type ApiRecipe = {
-  id: number;
-  title: string;
-  photo: string;
-  calories: number;
-  timeMinutes: number;
-  allergens: string[];
-  safeForFriends: number[];
+  lat: number;
+  lng: number;
+  certified: boolean;
+  allergenScore: number | null;
+  analyzed: boolean;
 };
 
 export default function RecipesScreen() {
   const { token } = useAuth();
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [friendMap, setFriendMap] = useState<Map<number, string>>(new Map());
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [region, setRegion] = useState<Region | null>(null);
+  const mapRef = useRef<MapView>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchNearby = useCallback(async (lat: number, lng: number) => {
     try {
-      const [apiFriends, apiRecipes] = await Promise.all([
-        apiFetch<ApiFriend[]>('/friends', {}, token),
-        apiFetch<ApiRecipe[]>('/recipes', {}, token),
-      ]);
-      const fMap = new Map(apiFriends.map((f) => [f.userId, f.name]));
-      setFriendMap(fMap);
-      setFriends(apiFriends.map((f): Friend => ({
-        id: String(f.userId),
-        name: f.name,
-        avatar: `https://i.pravatar.cc/150?u=${encodeURIComponent(f.email)}`,
-        sharedAllergens: f.sharedAllergens,
-        allergens: f.allergens as any,
-        diet: f.diet as any,
-      })));
-      setRecipes(apiRecipes.map((r): Recipe => ({
-        id: String(r.id),
-        title: r.title,
-        photo: r.photo,
-        calories: r.calories,
-        timeMinutes: r.timeMinutes,
-        friendIds: r.safeForFriends.map(String),
-      })));
+      const data = await apiFetch<Restaurant[]>(
+        `/restaurants/nearby?lat=${lat}&lng=${lng}`, {}, token,
+      );
+      setRestaurants(data);
     } catch {}
-    setLoading(false);
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  const analyzeRestaurant = useCallback(async (r: Restaurant) => {
+    if (r.analyzed) return;
+    try {
+      const updated = await apiFetch<Restaurant>('/restaurants/analyze', {
+        method: 'POST',
+        body: JSON.stringify({ placeId: r.placeId, name: r.name, lat: r.lat, lng: r.lng }),
+      }, token);
+      setRestaurants((prev) => prev.map((x) => x.placeId === updated.placeId ? updated : x));
+    } catch {}
+  }, [token]);
 
-  const filtered = useMemo(() => {
-    if (selectedFriends.length === 0) return recipes;
-    return recipes.filter((r) => r.friendIds.some((id) => selectedFriends.includes(id)));
-  }, [selectedFriends, recipes]);
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { setLoading(false); return; }
+      const loc = await Location.getCurrentPositionAsync({});
+      const r: Region = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.04,
+        longitudeDelta: 0.04,
+      };
+      setRegion(r);
+      await fetchNearby(r.latitude, r.longitude);
+      setLoading(false);
+    })();
+  }, [fetchNearby]);
 
-  const toggleFriend = (id: string) => {
-    setSelectedFriends((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  const markerColor = (r: Restaurant) => {
+    if (r.certified) return BRAND.green;
+    if (r.allergenScore == null) return BRAND.muted;
+    if (r.allergenScore >= 70) return BRAND.green;
+    if (r.allergenScore >= 40) return BRAND.terra;
+    return '#C0392B';
   };
 
+  const scoreLabel = (r: Restaurant) => {
+    if (r.certified) return 'Allersight Certified ✓';
+    if (!r.analyzed) return 'Tap to analyze menu';
+    return `Allergen Score: ${r.allergenScore ?? '?'}/100`;
+  };
+
+  if (loading || !region) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.container}>
+        <Header eyebrow="Nearby" title="Safe dining." subtitle="Finding your location…" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={BRAND.ink} />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BRAND.bg }}>
-      <FlatList
-        style={{ flex: 1 }}
-        data={filtered}
-        keyExtractor={(r) => r.id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: 12, paddingHorizontal: 20 }}
-        ListHeaderComponent={
-          <View>
-            <Header
-              eyebrow="Built from what you have"
-              title="Recipes for your crew."
-              subtitle="Filter by a friend to see what fits everyone at the table."
-            />
-            {friends.length > 0 && (
-              <FriendFilter friends={friends} selected={selectedFriends} onToggle={toggleFriend} />
-            )}
-          </View>
-        }
-        renderItem={({ item }) => <RecipeCard recipe={item} friends={friends} />}
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={BRAND.ink} />
-          ) : (
-            <Text style={styles.empty}>No recipes yet.</Text>
-          )
-        }
-        contentContainerStyle={{ paddingTop: 4, paddingBottom: 32 }}
-      />
+    <SafeAreaView edges={['top']} style={styles.container}>
+      <Header eyebrow="Nearby" title="Safe dining." subtitle="Restaurants scored by allergen safety." />
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={region}
+        showsUserLocation
+        onRegionChangeComplete={(r) => fetchNearby(r.latitude, r.longitude)}
+      >
+        {restaurants.map((r) => (
+          <Marker
+            key={r.placeId}
+            coordinate={{ latitude: r.lat, longitude: r.lng }}
+            pinColor={markerColor(r)}
+            onPress={() => analyzeRestaurant(r)}
+          >
+            <Callout>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>{r.name}</Text>
+                <Text style={[styles.calloutScore, { color: markerColor(r) }]}>
+                  {scoreLabel(r)}
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  empty: {
-    textAlign: 'center',
-    padding: 40,
-    fontFamily: FONTS.serifItalic,
-    fontSize: 18,
-    color: BRAND.muted,
-  },
+  container: { flex: 1, backgroundColor: BRAND.bg },
+  map: { flex: 1, borderRadius: 12, margin: 12 },
+  callout: { padding: 8, minWidth: 160 },
+  calloutTitle: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.ink },
+  calloutScore: { fontFamily: FONTS.sans, fontSize: 12, marginTop: 2 },
 });

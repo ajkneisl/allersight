@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def login(backend_url: str, email: str, password: str) -> tuple[str, str]:
     """Authenticate with the backend. Returns (jwt_token, user_email)."""
     resp = requests.post(
-        f"{backend_url}/auth/login",
+        f"{backend_url}/api/auth/login",
         json={"email": email, "password": password},
         timeout=10,
     )
@@ -28,7 +28,7 @@ class MealUploader:
     """Sends a JPEG-encoded frame to the backend POST /meals endpoint."""
 
     def __init__(self, backend_url: str, token: str) -> None:
-        self._url = f"{backend_url}/meals"
+        self._url = f"{backend_url}/api/meals"
         self._session = requests.Session()
         self._session.headers.update(
             {

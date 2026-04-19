@@ -9,6 +9,7 @@ object Meals : Table("meals") {
     val userId = long("user_id").references(Users.id)
     val imageHash = varchar("image_hash", 64)
     val description = text("description")
+    val status = varchar("status", 16).default("pending") // pending, ready, error
     val calories = integer("calories").nullable()
     val protein = integer("protein").nullable()
     val carbs = integer("carbs").nullable()
@@ -18,6 +19,8 @@ object Meals : Table("meals") {
     val recipeUrl = text("recipe_url").nullable()
     val sourceConfidence = varchar("source_confidence", 16).nullable()
     val ingredients = text("ingredients")
+    val allergens = text("allergens").default("[]")
+    val alternative = text("alternative").nullable()
     val locationLabel = varchar("location_label", 255).nullable()
     val latitude = double("latitude").nullable()
     val longitude = double("longitude").nullable()

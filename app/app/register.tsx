@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AllerlensLogo } from '@/components/brand/logo';
+import { AllersightLogo } from '@/components/brand/logo';
 import { BRAND, FONTS } from '@/constants/brand';
 import { ApiError } from '@/lib/api';
 import { registerAccount } from '@/lib/auth';
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.brand}>
-            <AllerlensLogo size="md" />
+            <AllersightLogo size="md" />
           </View>
 
           <View style={styles.eyebrowRow}>

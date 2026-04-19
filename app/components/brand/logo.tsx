@@ -10,7 +10,7 @@ const SIZES: Record<Size, { text: number; ring: number; dotInset: number; border
   lg: { text: 44, ring: 32, dotInset: 7, borderW: 2 },
 };
 
-export function AllerlensLogo({
+export function AllersightLogo({
   size = 'md',
   color = BRAND.ink,
 }: {
@@ -46,7 +46,7 @@ export function AllerlensLogo({
           ]}
         />
       </View>
-      <Text style={[styles.word, { fontSize: s.text, color }]}>vision</Text>
+      <Text style={[styles.word, { fontSize: s.text, color }]}>sight</Text>
     </View>
   );
 }

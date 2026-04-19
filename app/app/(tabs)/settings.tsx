@@ -102,7 +102,7 @@ export default function SettingsScreen() {
         <Header
           eyebrow="Dial in your profile"
           title="Settings."
-          subtitle="Tell Allerlens what to watch for and what to aim for."
+          subtitle="Tell Allersight what to watch for and what to aim for."
         />
 
         <View style={styles.card}>

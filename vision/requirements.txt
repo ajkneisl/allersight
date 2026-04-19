@@ -1,10 +1,9 @@
 opencv-python-headless==4.11.0.86
 ultralytics==8.3.145
-requests>=2.32,<3
 numpy>=1.26,<2
 Pillow>=10.4,<11
 imagehash>=4.3,<5
 pydantic>=2.9,<3
 pydantic-settings>=2.6,<3
 flask==3.1.1
-websocket-client>=1.7,<2
+mediapipe>=0.10,<1

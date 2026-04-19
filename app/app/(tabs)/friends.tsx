@@ -1,298 +1,325 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker } from 'react-native-maps';
 
-import { Header } from '@/components/brand/header';
 import { Pill } from '@/components/ui/pill';
 import { BRAND, FONTS } from '@/constants/brand';
-import { ALLERGENS, DIETS } from '@/constants/mock-data';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
-const ALLERGEN_LABEL = Object.fromEntries(ALLERGENS.map((a) => [a.id, a.label])) as Record<string, string>;
-const DIET_LABEL = Object.fromEntries(DIETS.map((d) => [d.id, d.label])) as Record<string, string>;
-
-type ApiFriend = {
+type Restaurant = {
   id: number;
-  userId: number;
+  placeId: string;
   name: string;
-  email: string;
-  allergens: string[];
-  diet: string;
-  sharedAllergens: number;
+  lat: number;
+  lng: number;
+  certified: boolean;
+  allergenScore: number | null;
+  analyzed: boolean;
 };
 
-type FriendRequest = {
-  id: number;
-  fromUserId: number;
-  fromEmail: string;
-  fromName: string;
-  status: string;
-  createdAt: string;
-};
+type MenuDish = { name: string; allergens: string[] };
 
-export default function FriendsScreen() {
+type RestaurantDetail = Restaurant & { dishes: MenuDish[] };
+
+export default function MapScreen() {
   const { token } = useAuth();
-  const [friends, setFriends] = useState<ApiFriend[]>([]);
-  const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [selected, setSelected] = useState<RestaurantDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [region, setRegion] = useState({
+    latitude: 47.6062,
+    longitude: -122.3321,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
+  });
 
-  const load = useCallback(() => {
-    setLoading(true);
-    Promise.all([
-      apiFetch<ApiFriend[]>('/friends', {}, token),
-      apiFetch<FriendRequest[]>('/friends/requests', {}, token),
-    ])
-      .then(([f, r]) => { setFriends(f); setRequests(r); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const load = useCallback(async (lat: number, lng: number) => {
+    try {
+      const data = await apiFetch<Restaurant[]>(
+        `/restaurants/nearby?lat=${lat}&lng=${lng}`,
+        {},
+        token,
+      );
+      setRestaurants(data);
+    } catch {}
+    setLoading(false);
   }, [token]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude, longitude } = loc.coords;
+        setRegion((r) => ({ ...r, latitude, longitude }));
+        load(latitude, longitude);
+      } else {
+        load(region.latitude, region.longitude);
+      }
+    })();
+  }, [load]);
 
-  const handleSendRequest = async () => {
-    const trimmed = email.trim();
-    if (!trimmed) return;
-    setAddError(null);
-    setAdding(true);
+  const openDetail = async (r: Restaurant) => {
+    setDetailLoading(true);
+    setSelected({ ...r, dishes: [] });
     try {
-      await apiFetch('/friends/request', { method: 'POST', body: JSON.stringify({ email: trimmed }) }, token);
-      setEmail('');
-      setModalOpen(false);
-    } catch (e: any) {
-      setAddError(e.message ?? 'Failed to send request');
-    } finally {
-      setAdding(false);
+      const detail = await apiFetch<RestaurantDetail>(`/restaurants/${r.id}`, {}, token);
+      setSelected(detail);
+    } catch {
+      setSelected({ ...r, dishes: [] });
     }
+    setDetailLoading(false);
   };
 
-  const handleAccept = async (id: number) => {
-    await apiFetch(`/friends/requests/${id}/accept`, { method: 'POST' }, token).catch(() => {});
-    load();
+  const analyzeRestaurant = async () => {
+    if (!selected) return;
+    setAnalyzing(true);
+    try {
+      await apiFetch<Restaurant>('/restaurants/analyze', {
+        method: 'POST',
+        body: JSON.stringify({
+          placeId: selected.placeId,
+          name: selected.name,
+          lat: selected.lat,
+          lng: selected.lng,
+        }),
+      }, token);
+      // Reload detail
+      const detail = await apiFetch<RestaurantDetail>(`/restaurants/${selected.id}`, {}, token);
+      setSelected(detail);
+      // Update list
+      setRestaurants((prev) =>
+        prev.map((r) => r.id === detail.id ? { ...r, allergenScore: detail.allergenScore, analyzed: detail.analyzed, certified: detail.certified } : r),
+      );
+    } catch {}
+    setAnalyzing(false);
   };
 
-  const handleReject = async (id: number) => {
-    await apiFetch(`/friends/requests/${id}/reject`, { method: 'POST' }, token).catch(() => {});
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+  const scoreColor = (score: number | null) => {
+    if (score == null) return BRAND.muted;
+    if (score >= 70) return BRAND.green;
+    if (score >= 40) return BRAND.terra;
+    return '#c0392b';
   };
 
-  const handleRemove = async (id: number) => {
-    await apiFetch(`/friends/${id}`, { method: 'DELETE' }, token).catch(() => {});
-    setFriends((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const renderHeader = () => (
-    <View>
-      <Header
-        eyebrow="The people at your table"
-        title="Your crew."
-        subtitle="Add friends by email, accept requests, and see their allergens."
-      />
-      <Pressable
-        onPress={() => setModalOpen(true)}
-        style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.9 }]}
+  return (
+    <View style={styles.container}>
+      <MapView
+        style={StyleSheet.absoluteFill}
+        region={region}
+        onRegionChangeComplete={setRegion}
+        showsUserLocation
       >
-        <MaterialCommunityIcons name="account-plus" size={16} color={BRAND.cream} />
-        <Text style={styles.addBtnText}>Send friend request</Text>
+        {restaurants.map((r) => (
+          <Marker
+            key={r.id}
+            coordinate={{ latitude: r.lat, longitude: r.lng }}
+            onPress={() => openDetail(r)}
+          >
+            <View style={[styles.pin, r.certified && styles.pinCertified, { backgroundColor: r.certified ? BRAND.green : BRAND.terra }]}>
+              <MaterialCommunityIcons name={r.certified ? 'check-decagram' : 'silverware-fork-knife'} size={r.certified ? 16 : 12} color={BRAND.cream} />
+            </View>
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* Legend */}
+      <View style={styles.legend}>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendDot, { backgroundColor: BRAND.green }]} />
+          <Text style={styles.legendText}>Allersight Certified</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendDot, { backgroundColor: BRAND.terra }]} />
+          <Text style={styles.legendText}>Restaurant</Text>
+        </View>
+      </View>
+
+      {/* Reload */}
+      <Pressable
+        style={styles.reloadBtn}
+        onPress={() => load(region.latitude, region.longitude)}
+      >
+        <MaterialCommunityIcons name="reload" size={18} color={BRAND.cream} />
+        <Text style={styles.reloadText}>Search this area</Text>
       </Pressable>
 
-      {requests.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pending requests</Text>
-          {requests.map((r) => (
-            <View key={r.id} style={styles.reqCard}>
-              <View style={styles.reqInfo}>
-                <Text style={styles.reqName}>{r.fromName}</Text>
-                <Text style={styles.reqEmail}>{r.fromEmail}</Text>
-              </View>
-              <Pressable onPress={() => handleAccept(r.id)} style={[styles.reqBtn, styles.reqAccept]}>
-                <Text style={styles.reqAcceptText}>Accept</Text>
-              </Pressable>
-              <Pressable onPress={() => handleReject(r.id)} style={[styles.reqBtn, styles.reqReject]}>
-                <Text style={styles.reqRejectText}>Decline</Text>
-              </Pressable>
-            </View>
-          ))}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator color={BRAND.ink} />
         </View>
       )}
 
-      {friends.length > 0 && (
-        <Text style={styles.sectionTitle}>Friends</Text>
-      )}
-    </View>
-  );
+      {/* Detail bottom sheet */}
+      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setSelected(null)}>
+          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.sheetHandle} />
 
-  return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BRAND.bg }}>
-      <FlatList
-        style={{ flex: 1 }}
-        data={friends}
-        keyExtractor={(f) => String(f.id)}
-        ListHeaderComponent={renderHeader}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.info}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.sub}>{item.email}</Text>
-              </View>
-              <Pill label={item.sharedAllergens > 0 ? 'Watch' : 'Safe'} variant={item.sharedAllergens > 0 ? 'warning' : 'safe'} />
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Diet</Text>
-              <Pill label={DIET_LABEL[item.diet] ?? 'No preference'} variant={item.diet === 'none' ? 'neutral' : 'brand'} />
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Allergens</Text>
-              {item.allergens.length === 0 ? (
-                <Pill label="None" variant="neutral" />
-              ) : (
-                <View style={styles.pillRow}>
-                  {item.allergens.map((a) => (
-                    <Pill key={a} label={ALLERGEN_LABEL[a] ?? a} variant="danger" />
-                  ))}
+            {selected && (
+              <ScrollView nestedScrollEnabled bounces showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                {/* Header */}
+                <View style={styles.detailHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailName}>{selected.name}</Text>
+                    {selected.certified && (
+                      <View style={styles.certRow}>
+                        <MaterialCommunityIcons name="check-decagram" size={16} color={BRAND.green} />
+                        <Text style={styles.certText}>Allersight Certified</Text>
+                      </View>
+                    )}
+                  </View>
+                  {selected.allergenScore != null && (
+                    <View style={[styles.scoreBadge, { borderColor: scoreColor(selected.allergenScore) }]}>
+                      <Text style={[styles.scoreNum, { color: scoreColor(selected.allergenScore) }]}>
+                        {selected.allergenScore}
+                      </Text>
+                      <Text style={styles.scoreLabel}>Allersense</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-            <Pressable onPress={() => handleRemove(item.id)} hitSlop={8} style={styles.removeBtn}>
-              <Text style={styles.removeText}>Remove</Text>
+
+                {/* Analyze button for un-analyzed restaurants */}
+                {!selected.analyzed && (
+                  <Pressable
+                    onPress={analyzeRestaurant}
+                    disabled={analyzing}
+                    style={({ pressed }) => [styles.analyzeBtn, (pressed || analyzing) && { opacity: 0.85 }]}
+                  >
+                    {analyzing ? (
+                      <ActivityIndicator size="small" color={BRAND.cream} />
+                    ) : (
+                      <MaterialCommunityIcons name="magnify" size={18} color={BRAND.cream} />
+                    )}
+                    <Text style={styles.analyzeBtnText}>
+                      {analyzing ? 'Analyzing menu…' : 'Analyze menu with AI'}
+                    </Text>
+                  </Pressable>
+                )}
+
+                {detailLoading ? (
+                  <ActivityIndicator style={{ marginTop: 20 }} color={BRAND.ink} />
+                ) : selected.analyzed && selected.dishes.length > 0 ? (
+                  <View style={styles.dishSection}>
+                    <Text style={styles.dishSectionLabel}>MENU ANALYSIS</Text>
+                    {selected.dishes.map((dish, i) => (
+                      <View key={i} style={styles.dishRow}>
+                        <View style={styles.dishInfo}>
+                          <Text style={styles.dishName}>{dish.name}</Text>
+                          {dish.allergens.length > 0 ? (
+                            <View style={styles.pillRow}>
+                              {dish.allergens.map((a) => (
+                                <Pill key={a} label={a.replace('-', ' ')} variant="danger" />
+                              ))}
+                            </View>
+                          ) : (
+                            <Pill label="No allergens" variant="safe" />
+                          )}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : selected.analyzed ? (
+                  <Text style={styles.noData}>Menu data not available.</Text>
+                ) : null}
+              </ScrollView>
+            )}
+
+            <Pressable onPress={() => setSelected(null)} style={styles.doneBtn}>
+              <Text style={styles.doneBtnText}>Close</Text>
             </Pressable>
           </View>
-        )}
-        ListEmptyComponent={
-          loading ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={BRAND.ink} />
-          ) : (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <Text style={styles.emptyText}>No friends added yet.</Text>
-            </View>
-          )
-        }
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 }}
-      />
-
-      <Modal visible={modalOpen} transparent animationType="fade" onRequestClose={() => setModalOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setModalOpen(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdropInner}>
-            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.sheetEyebrowRow}>
-                <View style={styles.sheetRule} />
-                <Text style={styles.sheetEyebrow}>Invite</Text>
-              </View>
-              <Text style={styles.sheetTitle}>
-                Add a <Text style={styles.sheetTitleItalic}>friend.</Text>
-              </Text>
-              <Text style={styles.sheetHint}>
-                Enter their email address to send a friend request.
-              </Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="friend@example.com"
-                placeholderTextColor={BRAND.textSubtle}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                autoFocus
-                onSubmitEditing={handleSendRequest}
-                style={styles.input}
-              />
-              {addError ? <Text style={styles.errorText}>{addError}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable onPress={() => setModalOpen(false)} style={({ pressed }) => [styles.btn, styles.btnGhost, pressed && { opacity: 0.7 }]}>
-                  <Text style={styles.btnGhostText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleSendRequest}
-                  disabled={!email.trim() || adding}
-                  style={({ pressed }) => [styles.btn, styles.btnPrimary, (pressed || !email.trim() || adding) && { opacity: 0.85 }]}
-                >
-                  <Text style={styles.btnPrimaryText}>{adding ? 'Sending…' : 'Send'}</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  addBtn: {
-    marginHorizontal: 20, marginTop: 8, marginBottom: 8, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14,
-    borderRadius: 999, backgroundColor: BRAND.ink,
+  container: { flex: 1 },
+  pin: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
-  addBtnText: { color: BRAND.cream, fontFamily: FONTS.sansSemi, fontSize: 13, letterSpacing: 0.3 },
-  section: { marginTop: 16, paddingHorizontal: 20, gap: 8 },
-  sectionTitle: {
-    marginTop: 20, marginBottom: 4, marginHorizontal: 20,
+  pinCertified: {
+    width: 36, height: 36, borderRadius: 18,
+  },
+  legend: {
+    position: 'absolute', top: 60, left: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12,
+    padding: 10, gap: 6, shadowColor: '#000', shadowOpacity: 0.1,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+  },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontFamily: FONTS.sansMedium, fontSize: 11, color: BRAND.ink },
+  reloadBtn: {
+    position: 'absolute', bottom: 32, alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: BRAND.ink, paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.15,
+    shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+  },
+  reloadText: { fontFamily: FONTS.sansSemi, fontSize: 13, color: BRAND.cream, letterSpacing: 0.3 },
+  loadingOverlay: {
+    position: 'absolute', top: 60, right: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: 8,
+  },
+  // Bottom sheet
+  backdrop: { flex: 1, backgroundColor: 'rgba(21,33,26,0.5)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: BRAND.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40, maxHeight: '75%',
+  },
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: BRAND.border,
+    alignSelf: 'center', marginBottom: 16,
+  },
+  detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
+  detailName: { fontFamily: FONTS.serifItalic, fontSize: 26, letterSpacing: -0.4, color: BRAND.ink },
+  certRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  certText: { fontFamily: FONTS.sansMedium, fontSize: 12, color: BRAND.green },
+  scoreBadge: {
+    alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 14, borderWidth: 1.5,
+  },
+  scoreNum: { fontFamily: FONTS.sansBold, fontSize: 24, lineHeight: 28 },
+  scoreLabel: { fontFamily: FONTS.sansMedium, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: BRAND.muted },
+  analyzeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: 999, backgroundColor: BRAND.ink, marginBottom: 16,
+  },
+  analyzeBtnText: { fontFamily: FONTS.sansSemi, fontSize: 13, color: BRAND.cream, letterSpacing: 0.3 },
+  dishSection: { gap: 8 },
+  dishSectionLabel: {
     fontFamily: FONTS.sansSemi, fontSize: 10, letterSpacing: 2,
-    textTransform: 'uppercase', color: BRAND.terra,
+    textTransform: 'uppercase', color: BRAND.terra, marginBottom: 4,
   },
-  reqCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14,
-    borderRadius: 14, borderWidth: 0.5, borderColor: BRAND.border, backgroundColor: BRAND.card,
+  dishRow: {
+    padding: 12, borderRadius: 14, backgroundColor: BRAND.card,
+    borderWidth: 0.5, borderColor: BRAND.border,
   },
-  reqInfo: { flex: 1, gap: 2 },
-  reqName: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.ink },
-  reqEmail: { fontFamily: FONTS.sans, fontSize: 12, color: BRAND.muted },
-  reqBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
-  reqAccept: { backgroundColor: BRAND.ink },
-  reqAcceptText: { fontFamily: FONTS.sansSemi, fontSize: 11, color: BRAND.cream, letterSpacing: 0.3 },
-  reqReject: { borderWidth: 0.5, borderColor: BRAND.border },
-  reqRejectText: { fontFamily: FONTS.sansSemi, fontSize: 11, color: BRAND.muted, letterSpacing: 0.3 },
-  card: {
-    marginHorizontal: 20, marginTop: 12, padding: 16, borderRadius: 18,
-    borderWidth: 0.5, borderColor: BRAND.border, backgroundColor: BRAND.card, gap: 14,
-    shadowColor: BRAND.ink, shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+  dishInfo: { gap: 6 },
+  dishName: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.ink },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  noData: { fontFamily: FONTS.sans, fontSize: 14, color: BRAND.muted, textAlign: 'center', paddingVertical: 20 },
+  doneBtn: {
+    marginTop: 12, paddingVertical: 14, borderRadius: 999,
+    backgroundColor: BRAND.ink, alignItems: 'center',
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  info: { flex: 1, gap: 2 },
-  name: { fontFamily: FONTS.serifItalic, fontSize: 22, lineHeight: 24, letterSpacing: -0.3, color: BRAND.ink },
-  sub: { fontFamily: FONTS.sans, fontSize: 12, color: BRAND.muted, marginTop: 2 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  metaLabel: { fontFamily: FONTS.sansSemi, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: BRAND.muted, width: 70 },
-  pillRow: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  removeBtn: { alignSelf: 'flex-end' },
-  removeText: { fontFamily: FONTS.sansMedium, fontSize: 12, color: BRAND.terra, letterSpacing: 0.3 },
-  emptyText: { fontFamily: FONTS.serifItalic, fontSize: 18, color: BRAND.muted, textAlign: 'center' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(21,33,26,0.55)', justifyContent: 'center', paddingHorizontal: 24 },
-  backdropInner: { justifyContent: 'center' },
-  sheet: { padding: 24, borderRadius: 22, backgroundColor: BRAND.cream, gap: 12 },
-  sheetEyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sheetRule: { width: 24, height: 1, backgroundColor: BRAND.terra },
-  sheetEyebrow: { fontFamily: FONTS.sansMedium, fontSize: 10, letterSpacing: 2.2, textTransform: 'uppercase', color: BRAND.muted },
-  sheetTitle: { fontFamily: FONTS.serif, fontSize: 34, lineHeight: 36, letterSpacing: -1, color: BRAND.ink },
-  sheetTitleItalic: { fontFamily: FONTS.serifItalic, color: BRAND.green },
-  sheetHint: { fontFamily: FONTS.sans, fontSize: 14, lineHeight: 20, color: BRAND.muted },
-  input: {
-    marginTop: 4, borderRadius: 12, borderWidth: 0.5, borderColor: BRAND.border,
-    paddingHorizontal: 14, paddingVertical: 12, fontFamily: FONTS.sans, fontSize: 16,
-    color: BRAND.ink, backgroundColor: '#ffffff',
-  },
-  errorText: { fontFamily: FONTS.sansMedium, fontSize: 13, color: BRAND.terra },
-  actions: { marginTop: 6, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-  btn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999 },
-  btnGhost: { backgroundColor: 'transparent' },
-  btnGhostText: { color: BRAND.muted, fontFamily: FONTS.sansSemi, fontSize: 13, letterSpacing: 0.3 },
-  btnPrimary: { backgroundColor: BRAND.ink },
-  btnPrimaryText: { color: BRAND.cream, fontFamily: FONTS.sansSemi, fontSize: 13, letterSpacing: 0.3 },
+  doneBtnText: { fontFamily: FONTS.sansSemi, fontSize: 14, color: BRAND.cream, letterSpacing: 0.3 },
 });

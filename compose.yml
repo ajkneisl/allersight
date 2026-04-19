@@ -1,5 +1,15 @@
 services:
-  backend:
-    build: ./backend
+  frontend:
+    build: .
     ports:
-      - "8080:8080"
+      - "80:80"
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiMjUzNzdmNjA5MzAxZTY1MzA2OTAyOTQzN2Q5YTY2ZDYiLCJ0IjoiODU5YTBlOGYtNWExMi00NDc4LWI5NzctYzM4MDkwZTk2MTVlIiwicyI6Ik1qQmpaRGhpT1RrdE4yRTROaTAwWW1Ka0xUazFOelF0TldOaFptRTFaakV5Tm1KayJ9=
+    depends_on:
+      - frontend
+    restart: unless-stopped

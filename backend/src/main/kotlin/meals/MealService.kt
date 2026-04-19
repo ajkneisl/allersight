@@ -23,6 +23,22 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.Base64
 
+object DietChecker {
+    private val rules: Map<String, List<String>> = mapOf(
+        "halal" to listOf("pork", "pepperoni", "bacon", "ham", "salami", "prosciutto", "lard", "gelatin", "pancetta", "chorizo", "sausage", "hot dog", "bratwurst"),
+        "kosher" to listOf("pork", "pepperoni", "bacon", "ham", "salami", "prosciutto", "lard", "shellfish", "shrimp", "crab", "lobster", "clam", "mussel", "oyster", "scallop", "crawfish"),
+        "vegetarian" to listOf("chicken", "beef", "pork", "lamb", "turkey", "duck", "veal", "venison", "bison", "bacon", "ham", "salami", "pepperoni", "prosciutto", "sausage", "hot dog", "steak", "ribs", "meatball", "ground meat", "anchovy", "shrimp", "crab", "lobster", "fish", "salmon", "tuna", "cod", "tilapia"),
+        "vegan" to listOf("chicken", "beef", "pork", "lamb", "turkey", "duck", "veal", "bacon", "ham", "salami", "pepperoni", "prosciutto", "sausage", "steak", "meatball", "fish", "salmon", "tuna", "shrimp", "crab", "lobster", "anchovy", "dairy", "milk", "cheese", "butter", "cream", "yogurt", "egg", "honey", "whey", "casein", "gelatin", "mozzarella", "parmesan", "cheddar"),
+        "pescatarian" to listOf("chicken", "beef", "pork", "lamb", "turkey", "duck", "veal", "venison", "bison", "bacon", "ham", "salami", "pepperoni", "prosciutto", "sausage", "hot dog", "steak", "ribs", "meatball", "ground meat"),
+    )
+
+    fun check(diet: String, ingredients: List<String>): List<String> {
+        val banned = rules[diet] ?: return emptyList()
+        val lower = ingredients.map { it.lowercase() }
+        return banned.filter { b -> lower.any { it.contains(b) } }.map { "$it (not $diet)" }
+    }
+}
+
 class DuplicateMealException(val existingId: Long) :
     RuntimeException("Meal image already saved")
 
@@ -86,12 +102,14 @@ class MealService(
                 // 2. Insert real data into DB
                 transaction {
                     Meals.update({ Meals.id eq id }) {
+                        it[status] = "ready"
                         it[description] = "${ai.name}\n${ai.description}".trim()
                         it[calories] = ai.calories
                         it[protein] = ai.protein
                         it[carbs] = ai.carbs
                         it[fat] = ai.fat
                         it[ingredients] = Json.encodeToString(stringListSerializer, ai.ingredients)
+                        it[allergens] = Json.encodeToString(stringListSerializer, ai.allergens)
                     }
                 }
 
@@ -116,13 +134,17 @@ class MealService(
                     NotificationService.create(userId, "meal_alert", title, body)
                 }
 
+                // Compute diet violations
+                val dietProfile = ProfileService.get(userId)
+                val dietViolations = DietChecker.check(dietProfile.diet, ai.ingredients)
+
                 // Broadcast Featherless result to app
                 val fullDescription = if (ai.description.isNotBlank()) "${ai.name} — ${ai.description}" else ai.name
                 val featherlessResponse = MealResponse(
-                    id = id, name = ai.name, description = ai.description,
+                    id = id, status = "ready", name = ai.name, description = ai.description,
                     calories = ai.calories, protein = ai.protein, carbs = ai.carbs, fat = ai.fat,
                     restaurant = null, recipeName = null, recipeUrl = null, sourceConfidence = null,
-                    ingredients = ai.ingredients, allergens = ai.allergens,
+                    ingredients = ai.ingredients, allergens = ai.allergens, dietViolations = dietViolations,
                     location = request.location, imageUrl = "/meals/$id/image",
                     createdAt = java.time.Instant.now().toString(),
                 )
@@ -130,12 +152,10 @@ class MealService(
 
                 // 3. TinyFish: find restaurant/recipe source
                 try {
-                    val extraction = tinyFish.analyzeMeal(
-                        imageBase64 = imageBase64,
+                    val s = tinyFish.analyzeMeal(
                         mealDescription = ai.name,
                         locationLabel = request.location?.label,
                     )
-                    val s = extraction.source
                     transaction {
                         Meals.update({ Meals.id eq id }) {
                             it[restaurant] = s.restaurant
@@ -144,21 +164,58 @@ class MealService(
                             it[sourceConfidence] = s.confidence
                         }
                     }
-                    val enriched = featherlessResponse.copy(
+                    var enriched = featherlessResponse.copy(
                         restaurant = s.restaurant, recipeName = s.recipeName,
                         recipeUrl = s.recipeUrl, sourceConfidence = s.confidence,
                     )
                     VisionHub.broadcastMeal(userId, Json.encodeToString(MealResponse.serializer(), enriched))
+
+                    // 4. If user has flagged allergens or diet violations, find an alternative
+                    val profile = ProfileService.get(userId)
+                    val flagged = ai.allergens.filter { it in profile.allergens }
+                    if (flagged.isNotEmpty() || dietViolations.isNotEmpty()) {
+                        val reasons = flagged + dietViolations
+                        val alt = tinyFish.fetchAlternative(ai.name, reasons)
+                        if (alt != null) {
+                            transaction {
+                                Meals.update({ Meals.id eq id }) {
+                                    it[alternative] = alt
+                                }
+                            }
+                            enriched = enriched.copy(alternative = alt)
+                            VisionHub.broadcastMeal(userId, Json.encodeToString(MealResponse.serializer(), enriched))
+                        }
+                    }
                 } catch (_: Exception) { /* TinyFish failure is non-fatal */ }
 
+            } catch (_: NoFoodDetectedException) {
+                log.warn("No food detected in meal {} — marking as error", id)
+                transaction {
+                    Meals.update({ Meals.id eq id }) {
+                        it[status] = "error"
+                        it[description] = "NOT_FOOD"
+                    }
+                }
+                val errorResponse = MealResponse(
+                    id = id, status = "error", name = "Not food", description = "NOT_FOOD",
+                    calories = null, protein = null, carbs = null, fat = null,
+                    restaurant = null, recipeName = null, recipeUrl = null, sourceConfidence = null,
+                    ingredients = emptyList(), allergens = emptyList(),
+                    location = request.location, imageUrl = "/meals/$id/image",
+                    createdAt = java.time.Instant.now().toString(),
+                )
+                VisionHub.broadcastMeal(userId, Json.encodeToString(MealResponse.serializer(), errorResponse))
             } catch (e: Exception) {
                 log.error("Featherless analysis failed for meal {}: {}", id, e.message, e)
+                transaction {
+                    Meals.update({ Meals.id eq id }) { it[status] = "error" }
+                }
             }
         }
 
         // Return 201 immediately with placeholder data
         return MealResponse(
-            id = id, name = request.description, description = "",
+            id = id, status = "pending", name = request.description, description = "",
             calories = null, protein = null, carbs = null, fat = null,
             restaurant = null, recipeName = null, recipeUrl = null, sourceConfidence = null,
             ingredients = emptyList(), allergens = emptyList(),
@@ -167,15 +224,18 @@ class MealService(
         )
     }
 
-    fun listRecent(userId: Long, limit: Int = 20): List<MealResponse> = transaction {
-        Meals.selectAll()
-            .where { Meals.userId eq userId }
-            .orderBy(Meals.createdAt, SortOrder.DESC)
-            .limit(limit)
-            .map(::rowToResponse)
+    fun listRecent(userId: Long, limit: Int = 20): List<MealResponse> {
+        val profile = ProfileService.get(userId)
+        return transaction {
+            Meals.selectAll()
+                .where { Meals.userId eq userId }
+                .orderBy(Meals.createdAt, SortOrder.DESC)
+                .limit(limit)
+                .map { rowToResponse(it, profile.diet) }
+        }
     }
 
-    private fun rowToResponse(row: ResultRow): MealResponse {
+    private fun rowToResponse(row: ResultRow, diet: String = "none"): MealResponse {
         val ingredients = runCatching {
             Json.decodeFromString(stringListSerializer, row[Meals.ingredients])
         }.getOrDefault(emptyList())
@@ -190,12 +250,15 @@ class MealService(
         val desc = raw.substringAfter("\n", "").trim()
 
         return MealResponse(
-            id = row[Meals.id], name = name, description = desc,
+            id = row[Meals.id], status = row[Meals.status], name = name, description = desc,
             calories = row[Meals.calories], protein = row[Meals.protein],
             carbs = row[Meals.carbs], fat = row[Meals.fat],
             restaurant = row[Meals.restaurant], recipeName = row[Meals.recipeName],
             recipeUrl = row[Meals.recipeUrl], sourceConfidence = row[Meals.sourceConfidence],
-            ingredients = ingredients, allergens = emptyList(),
+            ingredients = ingredients,
+            allergens = runCatching { Json.decodeFromString(stringListSerializer, row[Meals.allergens]) }.getOrDefault(emptyList()),
+            dietViolations = DietChecker.check(diet, ingredients),
+            alternative = row[Meals.alternative],
             location = location, imageUrl = "/meals/${row[Meals.id]}/image",
             createdAt = row[Meals.createdAt].toString(),
         )
